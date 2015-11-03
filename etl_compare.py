@@ -1,6 +1,13 @@
+#takes list of two values, compares and if different returns values concatenated with pipe 
 def report_diff(x):
     return x[0] if x[0] == x[1] else '{} | {}'.format(*x)
 
+#requires connection text file (cnxn_path) with two columns:
+#first is name (referenced in db1_name, db2_name
+#second is connection string which is likely dependent on local drivers
+
+#db1_sql_path and db2_sql_path contains sql script to extract data to compare
+#must be same columns and types 
 def get_connect(cnxn_path,db1_name,db1_sql_path,db2_name,db2_sql_path):
     import pyodbc
     import pandas
