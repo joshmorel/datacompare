@@ -1,61 +1,8 @@
-# For efficiency, working with list of SQL files which should be stored in one folder per dataset, per source
-def get_file_paths(path):
-    '''Stores all file paths for list of files in specified directory path as dictionary'''
-    import os
-    file_paths = {}
-    file_list = os.listdir(path)
-    for file in file_list:
-        file_name = file.rsplit(".",1)
-        file_paths[file_name[0]] = path + file
-    return file_paths
-
-hlabSQLs = get_file_paths("//GRH202/GRH Project Library/Data Warehouse/Execution/systems/HLAB/Validation/HLAB SQL/")
-edwSQLs = get_file_paths("//GRH202/GRH Project Library/Data Warehouse/Execution/systems/HLAB/Validation/EDW SQL/")
-dmrtSQLs = get_file_paths("//GRH202/GRH Project Library/Data Warehouse/Execution/systems/HLAB/Validation/DMRT SQL/")
-bbSQL = get_file_paths("//GRH202/GRH Project Library/Data Warehouse/Execution/systems/BloodBank/Validation/BloodBank SQL/")
-
-
-# For highest ease of troubleshooting, return un-matched values delimited by pipe
-def report_diff(x):
-    return x[0] if x[0] == x[1] else '{} | {}'.format(*x)
-
-def replace_sql_dates(sql_script,datetofrom = ("2015-04-01","2015-04-07")):
-    '''Takes a SQL script and replaces all date occurrences in YYYY-MM-DD format 
-    with provided date to and from pair'''
-    import re
-    import datetime
-    if not isinstance(sql_script,str):
-        raise TypeError('sql script must be string')
-    if not isinstance(datetofrom,tuple) or not len(datetofrom) == 2:
-        raise TypeError('dates to and from must be in tuple of length 2')
-    for d in datetofrom:
-        try:
-            datetime.datetime.strptime(d,'%Y-%m-%d')
-        except ValueError:
-            raise ValueError("incorrect date format, should be YYYY-MM-DD")
-    sql_script = sql_script
-    # Find all occurrences of a date in YYYY-MM-DD format
-    ms = list(re.finditer('\\d{4}-\\d{2}-\\d{2}',sql_script))
-    # For each pair of date occurrences, insert in first date of tuple then second
-    for i, m in enumerate(ms):
-        sql_script = sql_script[:m.start()] + datetofrom[i%2] + sql_script[m.end():]    
-    return sql_script
-
-
-def convert_to_str(obj):
-    '''to be used to convert all objects to strings and any None or NaN to blank string for ease of comparison'''
-    import pandas as pd
-    import numpy as np
-    if pd.isnull(obj):
-        return ''
-    elif isinstance(obj,bool) or isinstance(obj,np.bool_):
-        return str(int(obj))
-    elif isinstance(obj,float):
-        return str(int(round(obj,0)))
-    else:
-        return str(obj)
-
 def compare_result_sets(cnxn_path,db1_name,db1_sql_path,db2_name,db2_sql_path,datetofrom=("2015-04-01","2015-04-07")):
+    '''Compares two results sets from SQL queries and returns discrepancy info to troubleshoot issues.
+    Requires named connection strings stored in text file cnxn_path as per requirements of RDBMS.
+    Each script requires the same primary key labelled "PK", by which the result set is sorted in ascending order.
+    Column names and number of columsn must be the same'''
     import pandas as pd
     from pandas.util.testing import assert_frame_equal
     import pyodbc
@@ -113,3 +60,61 @@ def compare_result_sets(cnxn_path,db1_name,db1_sql_path,db2_name,db2_sql_path,da
         dataframes["mismatched"] = pd.merge(dataframes[db1_name], dataframes[db2_name], how='outer', on="PK")
         print("mismatched rows")
         return dataframes
+
+
+# For efficiency, working with list of SQL files which should be stored in one folder per dataset, per source
+def get_file_paths(path):
+    '''Stores all file paths for list of files in specified directory path as dictionary'''
+    import os
+    file_paths = {}
+    file_list = os.listdir(path)
+    for file in file_list:
+        file_name = file.rsplit(".",1)
+        file_paths[file_name[0]] = path + file
+    return file_paths
+
+hlab = get_file_paths("//GRH202/GRH Project Library/Data Warehouse/Execution/systems/HLAB/Validation/HLAB SQL/")
+edw = get_file_paths("//GRH202/GRH Project Library/Data Warehouse/Execution/systems/WinRecs/Validation/EDW SQL/")
+dmrt = get_file_paths("//GRH202/GRH Project Library/Data Warehouse/Execution/systems/WinRecs/Validation/DMRT SQL/")
+bb = get_file_paths("//GRH202/GRH Project Library/Data Warehouse/Execution/systems/BloodBank/Validation/BloodBank SQL/")
+wr = get_file_paths("//GRH202/GRH Project Library/Data Warehouse/Execution/systems/WinRecs/Validation/WR SQL/")
+
+# For highest ease of troubleshooting, return un-matched values delimited by pipe
+def report_diff(x):
+    return x[0] if x[0] == x[1] else '{} | {}'.format(*x)
+
+def replace_sql_dates(sql_script,datetofrom = ("2015-04-01","2015-04-07")):
+    '''Takes a SQL script and replaces all date occurrences in YYYY-MM-DD format 
+    with provided date to and from pair'''
+    import re
+    import datetime
+    if not isinstance(sql_script,str):
+        raise TypeError('sql script must be string')
+    if not isinstance(datetofrom,tuple) or not len(datetofrom) == 2:
+        raise TypeError('dates to and from must be in tuple of length 2')
+    for d in datetofrom:
+        try:
+            datetime.datetime.strptime(d,'%Y-%m-%d')
+        except ValueError:
+            raise ValueError("incorrect date format, should be YYYY-MM-DD")
+    sql_script = sql_script
+    # Find all occurrences of a date in YYYY-MM-DD format
+    ms = list(re.finditer('\\d{4}-\\d{2}-\\d{2}',sql_script))
+    # For each pair of date occurrences, insert in first date of tuple then second
+    for i, m in enumerate(ms):
+        sql_script = sql_script[:m.start()] + datetofrom[i%2] + sql_script[m.end():]    
+    return sql_script
+
+
+def convert_to_str(obj):
+    '''to be used to convert all objects to strings and any None or NaN to blank string for ease of comparison'''
+    import pandas as pd
+    import numpy as np
+    if pd.isnull(obj):
+        return ''
+    elif isinstance(obj,bool) or isinstance(obj,np.bool_):
+        return str(int(obj))
+    elif isinstance(obj,float):
+        return str(int(round(obj,0)))
+    else:
+        return str(obj)
