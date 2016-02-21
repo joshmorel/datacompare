@@ -5,7 +5,6 @@
 
 
 import pandas as pd
-from pandas.util.testing import assert_frame_equal
 import pyodbc
 import datetime
 import re 
@@ -28,7 +27,6 @@ class DataComp(object):
     '''Initializes with the left object'''
     def __init__(self, cnxn_path,left_cnxn_name,left_script_path,datetofrom=("2015-04-01","2015-04-02")):
         self.cnxn_path = cnxn_path
-        print(self.cnxn_path)
         self.left_cnxn_name = left_cnxn_name
         self.left_script_path = left_script_path
         self.datetofrom = datetofrom
@@ -152,22 +150,25 @@ class DataComp(object):
             str(self.left_not_right_data.shape[0]),"\n\nRows in right set not in left\n",str(self.right_not_left_data.shape[0]))        
 
     def _compare_values(self):
-        try:
-            assert_frame_equal(self.left_data,self.right_data)
-            print("For matched rows, all values are equal")
-        except AssertionError:
-            rows_with_diff = (self.left_data != self.right_data).max(axis=1)
-            cols_with_diff = (self.left_data != self.right_data).max(axis=0)
-            # In troubleshooting, only need to review those with differences
-            df_panel = pd.Panel({"left":self.left_data[rows_with_diff], "right":self.right_data[rows_with_diff]})
-            
-            diff = df_panel.apply(self._report_diff, axis=0)
-            print("For matched rows,",str(diff.shape[0]),"of the rows have at least one different value among",str(sum(cols_with_diff)),"columns flagged with differences")
-            
-            # Want to bring different columns to the left, so they can be most easily inspected
-            cols = diff.columns[cols_with_diff] 
-            cols = cols.append(diff.columns[~cols_with_diff])
-            self.diff_values = diff[cols]
+
+        #Return the position of the values which are not equal
+        diff_array = np.where(self.left_data.values != self.right_data.values) 
+
+        rows_with_diff = diff_array[0]
+        cols_with_diff = np.unique(diff_array[1])        
+         
+        ## Pass only columns and rows which have at least one difference
+        diff_panel = pd.Panel({"left":self.left_data.iloc[rows_with_diff,cols_with_diff],\
+            "right":self.right_data.iloc[rows_with_diff,cols_with_diff]})
+        diff_values = diff_panel.apply(self._report_diff, axis=0)
+        print("For matched rows,",str(len(rows_with_diff)),"of the rows have at least one different value among",str(len(cols_with_diff)),"columns flagged with differences")
+        
+        ## What to see all columns for contextual info for rows with at least some differences, but columns with differences at front
+        diff_rows = self.left_data.iloc[rows_with_diff,:]
+        diff_rows = diff_rows[diff_rows.columns.delete(cols_with_diff)]
+        diff_values = pd.concat([diff_values,diff_rows],axis=1)
+        self.diff_values = diff_values
+
             
     def _report_diff(self,x):
         return x[0] if x[0] == x[1] else '{} | {}'.format(*x)
