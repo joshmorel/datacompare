@@ -1,8 +1,8 @@
 # TODO: Test more
 # TODO: Document better
-# TODO: Test for uniqueness of assumed primary key
-# TODO: Optimize, consider comparison_array, instead of option used for comparison of differences
-
+# TODO: Add setkey
+# TODO: Add option to load data from dataframe
+# TODO: Add option to load left from txt
 
 import pandas as pd
 import pyodbc
@@ -68,6 +68,18 @@ class DataComp(object):
         df.insert(0,"-PK",df.iloc[:,0])
         df = df.sort_values(by = ["-PK"])
         return df
+    
+    def _populate_dataframe_from_txt(self,cnxn_path,cnxn_name):
+        '''With a valid path to text file'''
+        cnxns = self._get_cnxn_strings(path = self.cnxn_path)
+        cnxn_string = cnxns[cnxn_name]
+        df = pd.read_table(cnxn_string)
+        ## Converting all elements to string with no null values is easier to work with, assume data type validation is not an issue
+        df = df.applymap(self._convert_to_str)
+        ## Basic assumption is left most column is primary key for comparison. This can be set later
+        df.insert(0,"-PK",df.iloc[:,0])
+        df = df.sort_values(by = ["-PK"])
+        return df    
 
     def _convert_to_str(self,obj):
         '''to be used to convert all objects to strings and any None or NaN to blank string for ease of comparison'''
@@ -91,15 +103,20 @@ class DataComp(object):
                 cnxn_dict[splitLine[0]] = splitLine[1]
         return cnxn_dict
         
-    def add_right_data(self,right_cnxn_name,right_script_path):
+    def add_right_data(self,right_cnxn_name,right_script_path,source = "SQL"):
         self.right_cnxn_name = right_cnxn_name
         self.right_script_path = right_script_path
-        self.right_sql = self._load_sql_script(path=self.right_script_path,datetofrom=self.datetofrom)
-        self.right_data = self._populate_dataframe_from_sql(cnxn_path = self.cnxn_path,cnxn_name = self.right_cnxn_name, sql_script = self.right_sql)
+        if source == "SQL":
+            self.right_sql = self._load_sql_script(path=self.right_script_path,datetofrom=self.datetofrom)
+            self.right_data = self._populate_dataframe_from_sql(cnxn_path = self.cnxn_path,cnxn_name = self.right_cnxn_name, sql_script = self.right_sql)
+        else:
+            self.right_data = self._populate_dataframe_from_txt(cnxn_path = self.cnxn_path,cnxn_name = self.right_cnxn_name)
 
     def compare_data(self):
         if self.right_data is None:
             raise ValueError('right data has not yet been added, use add_right_data function')
+           
+        self._check_duplicate_pk()
         ## Only want to compare those columns that match, but still report on those columns in one dataset but not in others
         self._subset_on_common()
         ## Compare rows in two sets based on common key and report on differences
@@ -113,6 +130,15 @@ class DataComp(object):
         d["right_not_left_data"] = self.right_not_left_data
         d["diff_values"] = self.diff_values
         return d
+        
+    def _check_duplicate_pk(self):
+        left_pk_count = pd.value_counts(self.left_data["-PK"])
+        left_pk_count = left_pk_count[left_pk_count>1]
+        assert left_pk_count.shape[0] == 0, "PK of left data set is not unique, cannot complete comparison"
+        right_pk_count = pd.value_counts(self.right_data["-PK"])
+        right_pk_count = right_pk_count[right_pk_count>1]
+        assert right_pk_count.shape[0] == 0, "PK of right data set is not unique, cannot complete comparison"
+       
    
     def _subset_on_common(self):
         def common_elements(list1, list2):
