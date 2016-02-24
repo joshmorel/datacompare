@@ -114,14 +114,19 @@ class DataComp(object):
                 cnxn_dict[splitLine[0]] = splitLine[1]
         return cnxn_dict
         
-    def add_right_data(self,right_cnxn_name,right_script_path,source = "SQL"):
+    def add_right_data(self,right_cnxn_name,right_script_path,source = "SQL",DataFrame = None):
         self.right_cnxn_name = right_cnxn_name
         self.right_script_path = right_script_path
         if source == "SQL":
             self.right_sql = self._load_sql_script(path=self.right_script_path,datetofrom=self.datetofrom)
             self.right_data = self._populate_dataframe_from_sql(cnxn_path = self.cnxn_path,cnxn_name = self.right_cnxn_name, sql_script = self.right_sql)
-        else:
+        elif source == "txt":
             self.right_data = self._populate_dataframe_from_txt(cnxn_path = self.cnxn_path,cnxn_name = self.right_cnxn_name)
+        else:
+            df = DataFrame
+            df.insert(0,"-PK",df.iloc[:,0])
+            df = df.sort_values(by = ["-PK"])
+            self.right_data = df
 
     def compare_data(self):
         if self.right_data is None:
