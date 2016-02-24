@@ -9,6 +9,8 @@ import pyodbc
 import datetime
 import re 
 import numpy as np
+import codecs
+
 
 #Helper functions to get all sqls from a directory
 def get_file_paths(path):
@@ -48,7 +50,12 @@ class DataComp(object):
                 datetime.datetime.strptime(d,'%Y-%m-%d')
             except ValueError:
                 raise ValueError("incorrect date format, should be YYYY-MM-DD")
-        sql_script = open(path,'r').read()
+        # SQL scripts worked with in SSMS may be saved with utf-8 BOM mark which must be replaced with empty string for pyodbc execution
+        f = open(path,'rb')
+        sql_script_bytes = f.read()
+        f.close()
+        sql_script_bytes = sql_script_bytes.replace(codecs.BOM_UTF8,b'')
+        sql_script = sql_script_bytes.decode(encoding='utf-8')
         # Find all occurrences of a date in YYYY-MM-DD format
         ms = list(re.finditer('\\d{4}-\\d{2}-\\d{2}',sql_script))
         # For each pair of date occurrences, insert in first date of tuple then second
@@ -61,13 +68,17 @@ class DataComp(object):
         cnxns = self._get_cnxn_strings(path = self.cnxn_path)
         cnxn_string = cnxns[cnxn_name]
         cnxn = pyodbc.connect(cnxn_string)
-        df = pd.read_sql(sql_script,cnxn)
-        ## Converting all elements to string with no null values is easier to work with, assume data type validation is not an issue
-        df = df.applymap(self._convert_to_str)
-        ## Basic assumption is left most column is primary key for comparison. This can be set later
-        df.insert(0,"-PK",df.iloc[:,0])
-        df = df.sort_values(by = ["-PK"])
-        return df
+        try:
+            df = pd.read_sql(sql_script,cnxn)
+            assert df.shape[0] > 0, "The SQL executed does not return any rows, check " + sql_script
+            ## Converting all elements to string with no null values is easier to work with, assume data type validation is not an issue
+            df = df.applymap(self._convert_to_str)
+            ## Basic assumption is left most column is primary key for comparison. This can be set later
+            df.insert(0,"-PK",df.iloc[:,0])
+            df = df.sort_values(by = ["-PK"])
+            return df
+        except TypeError:
+            raise AssertionError("SQL script loaded but could not return a dataframe, check to make sure a result-set is actually returned")
     
     def _populate_dataframe_from_txt(self,cnxn_path,cnxn_name):
         '''With a valid path to text file'''
@@ -179,24 +190,25 @@ class DataComp(object):
 
         #Return the position of the values which are not equal
         diff_array = np.where(self.left_data.values != self.right_data.values) 
-
-        rows_with_diff = diff_array[0]
-        cols_with_diff = np.unique(diff_array[1])        
-         
-        ## Pass only columns and rows which have at least one difference
-        diff_panel = pd.Panel({"left":self.left_data.iloc[rows_with_diff,cols_with_diff],\
-            "right":self.right_data.iloc[rows_with_diff,cols_with_diff]})
-        diff_values = diff_panel.apply(self._report_diff, axis=0)
-        print("For matched rows,",str(len(rows_with_diff)),"of the rows have at least one different value among",str(len(cols_with_diff)),"columns flagged with differences")
         
-        ## What to see all columns for contextual info for rows with at least some differences, but columns with differences at front
-        diff_rows = self.left_data.iloc[rows_with_diff,:]
-        diff_rows = diff_rows[diff_rows.columns.delete(cols_with_diff)]
-        diff_values = pd.concat([diff_values,diff_rows],axis=1)
-        self.diff_values = diff_values
+        if len(diff_array[0]) == 0:
+            self.diff_values = None
+        else:
+            rows_with_diff = diff_array[0]
+            cols_with_diff = np.unique(diff_array[1])        
+             
+            ## Pass only columns and rows which have at least one difference
+            diff_panel = pd.Panel({"left":self.left_data.iloc[rows_with_diff,cols_with_diff],\
+                "right":self.right_data.iloc[rows_with_diff,cols_with_diff]})
+            diff_values = diff_panel.apply(self._report_diff, axis=0)
+            print("For matched rows,",str(len(rows_with_diff)),"of the rows have at least one different value among",str(len(cols_with_diff)),"columns flagged with differences")
+            
+            ## What to see all columns for contextual info for rows with at least some differences, but columns with differences at front
+            diff_rows = self.left_data.iloc[rows_with_diff,:]
+            diff_rows = diff_rows[diff_rows.columns.delete(cols_with_diff)]
+            diff_values = pd.concat([diff_values,diff_rows],axis=1)
+            self.diff_values = diff_values
 
             
     def _report_diff(self,x):
         return x[0] if x[0] == x[1] else '{} | {}'.format(*x)
-
-
