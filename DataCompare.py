@@ -1,4 +1,3 @@
-# TODO: Test more
 # TODO: Document better
 # TODO: Add setkey
 # TODO: Add option to load data from dataframe
@@ -169,9 +168,12 @@ class DataComp(object):
         
         left_cols_not_right = excluded_elements(left_cols,common_cols)
         right_cols_not_left = excluded_elements(right_cols,common_cols)
-        
+      
         print("Common columns from both data compared\n",common_cols,"\n\nColumns in left but not in right\n",\
-            left_cols_not_right,"\n\nColumns in left but not in right\n",right_cols_not_left)
+            left_cols_not_right,"\n\nColumns in right but not in left\n",right_cols_not_left)
+            
+        assert len(common_cols) >= 2, "Require at least one common column in data sets for comparison"
+            
         self.right_data = self.right_data[common_cols]
         self.left_data = self.left_data[common_cols]
         
