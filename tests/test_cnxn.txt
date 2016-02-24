@@ -1,0 +1,3 @@
+cnxn_name	cnxn_string
+GDELT	Driver={SQL Server Native Client 11.0};Provider=SQLNCLI11;Server=JOSH-PC\JPCSQLSERVER;Database=GDELT;Trusted_Connection=yes;
+GDELT_CA_TXT	C:/Users/Josh.Josh-PC/Documents/Beginning Software Engineering/MyProjectDataCompare/4Development/SQL/GDELT_FactCA2.txt
