@@ -1,8 +1,3 @@
-# TODO: Document better
-# TODO: Add setkey
-# TODO: Add option to load data from dataframe
-# TODO: Add option to load left from txt
-
 import pandas as pd
 import pyodbc
 import datetime
@@ -11,9 +6,17 @@ import numpy as np
 import codecs
 
 
-#Helper functions to get all sqls from a directory
 def get_file_paths(path):
-    '''Stores all file paths for list of files in specified directory path as dictionary'''
+    """ Creates dictionary of paths to files in a specific directory where keys are the file name (before first period).
+    Paths can then be passed to DataComp initialization like sqls["left"]
+
+    Parameters
+    ----------
+    path : Directory path where scripts are stored 
+    Examples
+    --------
+    >>> sqls = "C:/mysqlfiles/"
+    """   
     import os
     file_paths = {}
     file_list = os.listdir(path)
@@ -22,10 +25,23 @@ def get_file_paths(path):
         file_paths[file_name[0]] = path + file
     return file_paths
 
-## Way with class
+## DataComp class
 
 class DataComp(object):
-    '''Initializes with the left object'''
+    """ Container for comparison of two of data-sets a left and right, from SQL, txt or DataFrame.
+    On initialization loads left data. To complete comparison use add_right_data and compare_data methods.
+
+    Parameters
+    ----------
+    cnxn_path : Directory path to table of connection strings/paths for both SQL database and text files. See docs for example.
+    left_cnxn_name : The name in first column of connection string/path to use
+    left_script_path: Directory path to SQL script. Note: currently, left must be SQL but this will change in future. 
+    datetofrom: Two-element tuple containing date from and date to, to insert into SQL script. Must be YYYY-MM-DD format.
+        default ("2015-04-01","2015-04-02")
+    Examples
+    --------
+    >>> dc = DataComp("C:/cnxn.txt","sales",sqls["left"],("2015-04-01","2015-05-01"))
+    """
     def __init__(self, cnxn_path,left_cnxn_name,left_script_path,datetofrom=("2015-04-01","2015-04-02")):
         self.cnxn_path = cnxn_path
         self.left_cnxn_name = left_cnxn_name
@@ -70,8 +86,6 @@ class DataComp(object):
         try:
             df = pd.read_sql(sql_script,cnxn)
             assert df.shape[0] > 0, "The SQL executed does not return any rows, check " + sql_script
-            ## Converting all elements to string with no null values is easier to work with, assume data type validation is not an issue
-            df = df.applymap(self._convert_to_str)
             ## Basic assumption is left most column is primary key for comparison. This can be set later
             df.insert(0,"-PK",df.iloc[:,0])
             df = df.sort_values(by = ["-PK"])
@@ -84,24 +98,13 @@ class DataComp(object):
         cnxns = self._get_cnxn_strings(path = self.cnxn_path)
         cnxn_string = cnxns[cnxn_name]
         df = pd.read_table(cnxn_string)
-        ## Converting all elements to string with no null values is easier to work with, assume data type validation is not an issue
-        df = df.applymap(self._convert_to_str)
+
         ## Basic assumption is left most column is primary key for comparison. This can be set later
         df.insert(0,"-PK",df.iloc[:,0])
         df = df.sort_values(by = ["-PK"])
         return df    
 
-    def _convert_to_str(self,obj):
-        '''to be used to convert all objects to strings and any None or NaN to blank string for ease of comparison'''
-        if pd.isnull(obj):
-            return ''
-        elif isinstance(obj,bool) or isinstance(obj,np.bool_):
-            return str(int(obj))
-        elif isinstance(obj,float):
-            return str(int(round(obj,0)))
-        else:
-            return str(obj)
-            
+           
     def _get_cnxn_strings(self,path):
         '''Gets connection strings and stores in dictionary, assumes first row is headers, 
         first columns is name, second column is connection string'''
@@ -128,6 +131,15 @@ class DataComp(object):
             self.right_data = df
 
     def compare_data(self):
+        """Completely compare the loaded right and left data sets
+        
+        Output is five item dictionary including:
+            left_data in right
+            right_data in left
+            left_data not in right
+            right_data_not_in_left
+            diff_val
+        """
         if self.right_data is None:
             raise ValueError('right data has not yet been added, use add_right_data function')
            
@@ -194,9 +206,12 @@ class DataComp(object):
             str(self.left_not_right_data.shape[0]),"\n\nRows in right set not in left\n",str(self.right_not_left_data.shape[0]))        
 
     def _compare_values(self):
+        ## Converting all elements to string with no null values is easier to work with, assume data type validation is not an issue
+        left_data_str = self.left_data.applymap(self._convert_to_str)
+        right_data_str = self.right_data.applymap(self._convert_to_str)
 
         #Return the position of the values which are not equal
-        diff_array = np.where(self.left_data.values != self.right_data.values) 
+        diff_array = np.where(left_data_str.values != right_data_str.values) 
         
         if len(diff_array[0]) == 0:
             self.diff_values = None
@@ -205,17 +220,32 @@ class DataComp(object):
             cols_with_diff = np.unique(diff_array[1])        
              
             ## Pass only columns and rows which have at least one difference
-            diff_panel = pd.Panel({"left":self.left_data.iloc[rows_with_diff,cols_with_diff],\
-                "right":self.right_data.iloc[rows_with_diff,cols_with_diff]})
+            diff_panel = pd.Panel({"left":left_data_str.iloc[rows_with_diff,cols_with_diff],\
+                "right":right_data_str.iloc[rows_with_diff,cols_with_diff]})
             diff_values = diff_panel.apply(self._report_diff, axis=0)
             print("For matched rows,",str(len(rows_with_diff)),"of the rows have at least one different value among",str(len(cols_with_diff)),"columns flagged with differences")
             
             ## What to see all columns for contextual info for rows with at least some differences, but columns with differences at front
-            diff_rows = self.left_data.iloc[rows_with_diff,:]
+            diff_rows = left_data_str.iloc[rows_with_diff,:]
             diff_rows = diff_rows[diff_rows.columns.delete(cols_with_diff)]
             diff_values = pd.concat([diff_values,diff_rows],axis=1)
             self.diff_values = diff_values
 
+    def _convert_to_str(self,obj):
+        '''to be used to convert all objects to strings and any None or NaN to blank string for ease of comparison'''
+        if pd.isnull(obj):
+            return ''
+        elif isinstance(obj,bool) or isinstance(obj,np.bool_):
+            return str(int(obj))
+        elif isinstance(obj,float):
+            return str(int(round(obj,0)))
+        else:
+            return str(obj)
             
     def _report_diff(self,x):
         return x[0] if x[0] == x[1] else '{} | {}'.format(*x)
+    
+    #def set_key(side="both",col):
+        
+        
+    
