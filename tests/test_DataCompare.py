@@ -45,7 +45,18 @@ class TestMyFunctions(unittest.TestCase):
         self.assertTrue((testdc_dict["left_not_right_data"].shape[0] > 0) and (testdc_dict["right_not_left_data"].shape[0] > 0)\
             and (testdc_dict["diff_values"] is None),"Differing rows test failed")
     def test_compare_rowsame_diffval(self):
-        pass
+        testdc = dc.DataComp(cnxn_path = "test_cnxn.txt",left_cnxn_name = "GDELT",left_script_path = "test_compare_diffval_left.sql",datetofrom=('2015-09-29','2015-09-30'))
+        testdc.add_right_data("GDELT","test_compare_diffval_right.sql")
+        testdc_dict = testdc.compare_data()
+        self.assertTrue((testdc_dict["left_not_right_data"].shape[0] == 0) and (testdc_dict["right_not_left_data"].shape[0] == 0)\
+            and (testdc_dict["diff_values"].shape[0] > 5),"Differing values failed")
+    def test_compare_rowsame_diffnull(self):
+        testdc = dc.DataComp(cnxn_path = "test_cnxn.txt",left_cnxn_name = "GDELT",left_script_path = "test_compare_diffnull_left.sql",datetofrom=('2015-05-29','2015-09-30'))
+        testdc.add_right_data("GDELT","test_compare_diffnull_right.sql")
+        testdc_dict = testdc.compare_data()
+        self.assertTrue((testdc_dict["left_not_right_data"].shape[0] == 0) and (testdc_dict["right_not_left_data"].shape[0] == 0)\
+            and (testdc_dict["diff_values"].shape[0] > 5),"Differing values failed")
+        
     
    
 if __name__ == '__main__':
