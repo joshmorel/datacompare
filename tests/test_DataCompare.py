@@ -56,8 +56,21 @@ class TestMyFunctions(unittest.TestCase):
         testdc_dict = testdc.compare_data()
         self.assertTrue((testdc_dict["left_not_right_data"].shape[0] == 0) and (testdc_dict["right_not_left_data"].shape[0] == 0)\
             and (testdc_dict["diff_values"].shape[0] > 5),"Differing values failed")
-        
-    
+    def test_setkey_asserterror1(self):
+        with self.assertRaises(AssertionError):
+            testdc = dc.DataComp(cnxn_path = "test_cnxn.txt",left_cnxn_name = "GDELT",left_script_path = "test_normal.sql",datetofrom=('2015-09-29','2015-09-30'))
+            testdc.set_key("left","hello")
+    def test_setkey_asserterror2(self):
+        with self.assertRaises(AssertionError):
+            testdc = dc.DataComp(cnxn_path = "test_cnxn.txt",left_cnxn_name = "GDELT",left_script_path = "test_normal.sql",datetofrom=('2015-09-29','2015-09-30'))
+            testdc.set_key("both","NumSources")
+    def test_compare_setkey(self):
+        testdc = dc.DataComp(cnxn_path = "test_cnxn.txt",left_cnxn_name = "GDELT",left_script_path = "test_compare_setkey_left.sql",datetofrom=('2015-09-29','2015-09-30'))
+        testdc.add_right_data("GDELT","test_compare_setkey_right.sql")
+        testdc.set_key("both","ActorKey")
+        testdc_dict = testdc.compare_data()
+        self.assertTrue((testdc_dict["left_not_right_data"].shape[0] == 0) and (testdc_dict["right_not_left_data"].shape[0] == 0)\
+            and (testdc_dict["diff_values"] is None),"Same result set comparison failed")       
    
 if __name__ == '__main__':
     unittest.main(exit=False)
