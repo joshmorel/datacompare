@@ -40,7 +40,7 @@ class DataComp(object):
         default ("2015-04-01","2015-04-02")
     Examples
     --------
-    >>> dc = DataComp("C:/cnxn.txt","sales",sqls["left"],("2015-04-01","2015-05-01"))
+    >>> dc1 = DataComp("C:/cnxn.txt","sales",sqls["left"],("2015-04-01","2015-05-01"))
     """
     def __init__(self, cnxn_path,left_cnxn_name,left_script_path,datetofrom=("2015-04-01","2015-04-02")):
         self.cnxn_path = cnxn_path
@@ -241,11 +241,42 @@ class DataComp(object):
             return str(int(round(obj,0)))
         else:
             return str(obj)
-            
+    
     def _report_diff(self,x):
         return x[0] if x[0] == x[1] else '{} | {}'.format(*x)
     
-    #def set_key(side="both",col):
-        
-        
+    def set_key(self,side="left",col = "-PK"):
+        """ Sets the primary key on both, left or right data set to another named column for comparison
     
+        Parameters
+        ----------
+        side : the data set to set key on, either "left", "right" or "both"
+            default "both"
+        col : the column name to set as a key
+            default "-PK"
+        Examples
+        --------
+        >>> dc1.set_key("both","Employee")
+        """   
+        if side == "both":
+            assert self.right_data is not None, "Right data set must exist"
+            assert col in self.left_data.columns, "Column specified as key must be column in left data set, check spelling and case"
+            assert col in self.right_data.columns, "Column specified as key must be column in right data set, confirm right exists, check spelling and case"
+            self.left_data["-PK"] = self.left_data[col]
+            self.right_data["-PK"] = self.right_data[col]
+            self.left_data = self.left_data.sort_values(by = ["-PK"])
+            self.right_data = self.right_data.sort_values(by = ["-PK"])            
+        elif side == "left":
+            assert col in self.left_data.columns, "Column specified as key must be column in left data set, check spelling and case"
+            self.left_data["-PK"] = self.left_data[col]
+            self.left_data = self.left_data.sort_values(by = ["-PK"])
+        elif side == "right":
+            assert self.right_data is not None, "Right data set must exist"
+            assert col in self.right_data.columns, "Column specified as key must be column in right data set, confirm right exists, or check spelling and case"
+            self.right_data["-PK"] = self.right_data[col]
+            self.right_data = self.right_data.sort_values(by = ["-PK"])            
+        else:
+            raise AssertionError('side must be both, left or right')
+            
+            
+        
