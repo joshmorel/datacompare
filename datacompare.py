@@ -1,9 +1,11 @@
+# -*- coding: utf-8 -*-
 import pandas as pd
 import pyodbc
 import datetime
 import re 
 import numpy as np
 import codecs
+import configparser as cp
 
 
 def get_file_paths(path):
@@ -29,30 +31,90 @@ def get_file_paths(path):
 
 class DataComp(object):
     """ Container for comparison of two of data-sets a left and right, from SQL, txt or DataFrame.
-    On initialization loads left data. To complete comparison use add_right_data and compare_data methods.
+    On initialization loads left data from either sql or txt. To complete comparison use add_right_data and compare_data methods.
 
     Parameters
     ----------
-    cnxn_path : Directory path to table of connection strings/paths for both SQL database and text files. See docs for example.
-    left_cnxn_name : The name in first column of connection string/path to use
-    left_script_path: Directory path to SQL script. Note: currently, left must be SQL but this will change in future. 
-    datetofrom: Two-element tuple containing date from and date to, to insert into SQL script. Must be YYYY-MM-DD format.
+    cnxn_path : Directory path to an ini file with connection information. See cnxn_example.ini in github repo for example.
+    left_cnxn_name : The connection name of the left data set in the ini file
+    left_script_path: Directory path to SQL script. If None, then expected is txt file and therefore no script
+        default None
+    datetofrom: Two-element tuple containing date from and date to, to insert into SQL script. Will be ignored for txt source. Must be YYYY-MM-DD format.
         default ("2015-04-01","2015-04-02")
     Examples
     --------
-    >>> dc1 = DataComp("C:/cnxn.txt","sales",sqls["left"],("2015-04-01","2015-05-01"))
+    >>> dc1 = DataComp("C:/cnxn.ini","sales",sqls["left"],("2015-04-01","2015-05-01"))
     """
-    def __init__(self, cnxn_path,left_cnxn_name,left_script_path,datetofrom=("2015-04-01","2015-04-02")):
+
+    def __init__(self, cnxn_path,left_cnxn_name,left_script_path = None,datetofrom=("2015-04-01","2015-04-02"),**kwargs):
+        """Gets connection information from ini file and loads left data into class attribute"""
         self.cnxn_path = cnxn_path
         self.left_cnxn_name = left_cnxn_name
         self.left_script_path = left_script_path
         self.datetofrom = datetofrom
-        self.left_sql = self._load_sql_script(path=self.left_script_path,datetofrom=self.datetofrom)
-        self.left_data = self._populate_dataframe_from_sql(cnxn_path = self.cnxn_path,cnxn_name = self.left_cnxn_name, sql_script = self.left_sql)
+        self.left_data, self.left_sql = self._get_data(cnxn_name = self.left_cnxn_name, script_path = self.left_script_path,**kwargs)
         self.right_cnxn_name = None
         self.right_script_path = None
         self.right_sql = None
         self.right_data = None
+
+    def add_right_data(self,right_cnxn_name,right_script_path = None, DataFrame = None,**kwargs):
+        """Add right data for comparison, unlike left data, right can be from DataFrame.
+        For DataFrame set right_cnxn_name = None and set DataFrame to a named DataFrame object in scope
+
+        Parameters
+        ----------
+        right_cnxn_name : The connection name of the right data set in the ini file
+            set right_cnxn_name = None for DataFrame
+        right_script_path: Directory path to SQL script. If None, then expected is txt file and therefore no script
+            default None
+        DataFrame: A pandas DataFrame named object in scope
+
+        Examples
+        --------
+        >>> dc1.add_right_data(right_cnxn_name="sales_sql",right_script_path = sqls["sales"])
+        >>> dc1.add_right_data(right_cnxn_name="sales_txt")
+        >>> dc1.add_right_data(right_cnxn_name=None,DataFrame = mydf)
+
+        """
+        self.right_cnxn_name = right_cnxn_name
+        self.right_script_path = right_script_path
+        if right_cnxn_name is None:
+            df = DataFrame
+            df.insert(0,"-PK",df.iloc[:,0])
+            df = df.sort_values(by = ["-PK"])
+            self.right_data = df
+        else:
+            self.right_data, self.right_sql = self._get_data(cnxn_name = self.right_cnxn_name, script_path = self.right_script_path,**kwargs)
+
+    def _get_data(self,cnxn_name,script_path,**kwargs):
+        """Gets data from either text source or SQL source based on what is stored in ini file for specified name
+        Also returns the actual sql for inspection, troubleshooting
+        """
+        if script_path is None:
+            expected_type = 'txt'
+        else: 
+            expected_type = 'sql'
+        cnxn_info = self._get_cnxn_info(cnxn_name = cnxn_name,expected_type = expected_type)
+
+        if script_path is None:
+            sql_script = None
+            data = self._populate_dataframe_from_txt(txt_path = cnxn_info[1],**kwargs)
+        else:
+            sql_script = self._load_sql_script(path=script_path,datetofrom=self.datetofrom)
+            data = self._populate_dataframe_from_sql(cnxn_string = cnxn_info[1],cnxn_name = cnxn_name, sql_script = sql_script)
+        return data, sql_script
+
+    def _get_cnxn_info(self,cnxn_name,expected_type):
+        """Gets sql connection string or txt path from ini file"""
+        parser = cp.ConfigParser()
+        parser.read(self.cnxn_path)
+        assert parser.has_section(cnxn_name), "The cnxn_name provided is not in the ini file specified." + self.cnxn_path
+        cnxn_type = parser.get(cnxn_name,'cnxn_type')
+        assert cnxn_type == expected_type, "The expected type, " + expected_type + ", is not the same as the cnxn_type, " + cnxn_type +\
+            ".\nExpected type is txt if script_path is None, otherwise sql"
+        cnxn_string =  parser.get(cnxn_name,'cnxn_string')
+        return (cnxn_type,cnxn_string)
 
     def _load_sql_script(self,path,datetofrom=("2015-04-01","2015-04-02")):
         '''Load SQL and changes all date occurrence pairs to to and from in datetofrom parameter'''
@@ -66,9 +128,8 @@ class DataComp(object):
             except ValueError:
                 raise ValueError("incorrect date format, should be YYYY-MM-DD")
         # SQL scripts worked with in SSMS may be saved with utf-8 BOM mark which must be replaced with empty string for pyodbc execution
-        f = open(path,'rb')
-        sql_script_bytes = f.read()
-        f.close()
+        with open(path,'rb') as f:
+            sql_script_bytes = f.read()
         sql_script_bytes = sql_script_bytes.replace(codecs.BOM_UTF8,b'')
         sql_script = sql_script_bytes.decode(encoding='utf-8')
         # Find all occurrences of a date in YYYY-MM-DD format
@@ -78,67 +139,38 @@ class DataComp(object):
             sql_script = sql_script[:m.start()] + datetofrom[i%2] + sql_script[m.end():]    
         return sql_script        
 
-    def _populate_dataframe_from_sql(self,cnxn_path,cnxn_name,sql_script):
+    def _populate_dataframe_from_sql(self,cnxn_string,cnxn_name,sql_script):
         '''With a valid SQL script and connection, loads SQL data into dataframe'''
-        cnxns = self._get_cnxn_strings(path = self.cnxn_path)
-        cnxn_string = cnxns[cnxn_name]
-        cnxn = pyodbc.connect(cnxn_string)
-        try:
-            df = pd.read_sql(sql_script,cnxn)
-            assert df.shape[0] > 0, "The SQL executed does not return any rows, check " + sql_script
-            ## Basic assumption is left most column is primary key for comparison. This can be set later
-            df.insert(0,"-PK",df.iloc[:,0])
-            df = df.sort_values(by = ["-PK"])
-            return df
-        except TypeError:
-            raise AssertionError("SQL script loaded but could not return a dataframe, check to make sure a result-set is actually returned")
+        with pyodbc.connect(cnxn_string) as cnxn:
+            try:
+                df = pd.read_sql(sql_script,cnxn)
+                assert df.shape[0] > 0, "The SQL executed does not return any rows, check " + sql_script
+                ## Basic assumption is left most column is primary key for comparison. This can be set later
+                df.insert(0,"-PK",df.iloc[:,0])
+                df = df.sort_values(by = ["-PK"])
+                return df
+            except TypeError:
+                raise AssertionError("SQL script loaded but could not return a dataframe, check to make sure a result-set is actually returned")
     
-    def _populate_dataframe_from_txt(self,cnxn_path,cnxn_name):
-        '''With a valid path to text file'''
-        cnxns = self._get_cnxn_strings(path = self.cnxn_path)
-        cnxn_string = cnxns[cnxn_name]
-        df = pd.read_table(cnxn_string)
-
+    def _populate_dataframe_from_txt(self,txt_path,**kwargs):
+        """Creates dataframe from txt file, **kwargs for read_table keyword arguments such as non-tab sep"""
+        df = pd.read_table(txt_path,**kwargs)
         ## Basic assumption is left most column is primary key for comparison. This can be set later
         df.insert(0,"-PK",df.iloc[:,0])
         df = df.sort_values(by = ["-PK"])
         return df    
-
            
-    def _get_cnxn_strings(self,path):
-        '''Gets connection strings and stores in dictionary, assumes first row is headers, 
-        first columns is name, second column is connection string'''
-        cnxn_dict = {}
-        with open(path, 'r') as f:
-            next(f)
-            for line in f:
-                splitLine = line.split(sep='\t')
-                cnxn_dict[splitLine[0]] = splitLine[1]
-        return cnxn_dict
-        
-    def add_right_data(self,right_cnxn_name,right_script_path,source = "SQL",DataFrame = None):
-        self.right_cnxn_name = right_cnxn_name
-        self.right_script_path = right_script_path
-        if source == "SQL":
-            self.right_sql = self._load_sql_script(path=self.right_script_path,datetofrom=self.datetofrom)
-            self.right_data = self._populate_dataframe_from_sql(cnxn_path = self.cnxn_path,cnxn_name = self.right_cnxn_name, sql_script = self.right_sql)
-        elif source == "txt":
-            self.right_data = self._populate_dataframe_from_txt(cnxn_path = self.cnxn_path,cnxn_name = self.right_cnxn_name)
-        else:
-            df = DataFrame
-            df.insert(0,"-PK",df.iloc[:,0])
-            df = df.sort_values(by = ["-PK"])
-            self.right_data = df
-
     def compare_data(self):
-        """Completely compare the loaded right and left data sets
-        
-        Output is five item dictionary including:
-            left_data in right
-            right_data in left
-            left_data not in right
-            right_data_not_in_left
-            diff_val
+        """ Completely compare the loaded left and right data sets.
+        Displaying both testing message and returning five item dictionary for exploration including:
+            left_data: The left data loaded, but subset to include only shared columns with right
+            right_data: The right data loaded, but subset to include only shared columns with left
+            left_not_right_data: If any, rows in left data not found in right based on shared primary key (default is left most in each data set, unless set_key method used)
+            right_not_left_data: If any, rows in right data not found in left based on shared primary key
+            diff_values: Matched rows where at least one value is different, columns with at least one different are moved to left of PK, with different values delimited by pipe
+        Examples
+        --------
+        >>> dict_data = dc1.compare_data()
         """
         if self.right_data is None:
             raise ValueError('right data has not yet been added, use add_right_data function')
@@ -159,6 +191,7 @@ class DataComp(object):
         return d
         
     def _check_duplicate_pk(self):
+        """ Check to make sure the set PK for both sets has no duplicates"""
         left_pk_count = pd.value_counts(self.left_data["-PK"])
         left_pk_count = left_pk_count[left_pk_count>1]
         assert left_pk_count.shape[0] == 0, "PK of left data set is not unique, cannot complete comparison"
@@ -168,6 +201,7 @@ class DataComp(object):
        
    
     def _subset_on_common(self):
+        """ Find common columns in two data sets, and subset each set on those columns"""
         def common_elements(list1, list2):
             return [element for element in list1 if element in list2]
         def excluded_elements(list1, list2):
@@ -191,6 +225,8 @@ class DataComp(object):
         
     
     def _compare_row_counts(self):
+        """ Find rows not common to both sets, report on them, and store these findings"""
+
         merged_data = pd.merge(self.left_data, self.right_data, how='outer', on="-PK")
         right_not_left_pks = merged_data[pd.isnull(merged_data.iloc[:,1])][["-PK"]]
         left_not_right_pks = merged_data[pd.isnull(merged_data.iloc[:,-1])][["-PK"]]
@@ -206,7 +242,9 @@ class DataComp(object):
             str(self.left_not_right_data.shape[0]),"\n\nRows in right set not in left\n",str(self.right_not_left_data.shape[0]))        
 
     def _compare_values(self):
-        ## Converting all elements to string with no null values is easier to work with, assume data type validation is not an issue
+        """ Compare the values of those rows commont to both sets"""
+        
+        ## First convert all elements to string, including conversion of null values as easier to work with, assume data type validation is not a concern
         left_data_str = self.left_data.applymap(self._convert_to_str)
         right_data_str = self.right_data.applymap(self._convert_to_str)
 
@@ -243,6 +281,7 @@ class DataComp(object):
             return str(obj)
     
     def _report_diff(self,x):
+        """Returns difference from two sets with left and right values delimited by pipe"""
         return x[0] if x[0] == x[1] else '{} | {}'.format(*x)
     
     def set_key(self,side="left",col = "-PK"):
@@ -251,7 +290,7 @@ class DataComp(object):
         Parameters
         ----------
         side : the data set to set key on, either "left", "right" or "both"
-            default "both"
+            default "left"
         col : the column name to set as a key
             default "-PK"
         Examples
