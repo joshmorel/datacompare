@@ -254,7 +254,7 @@ class DataComp(object):
         if len(diff_array[0]) == 0:
             self.diff_values = None
         else:
-            rows_with_diff = diff_array[0]
+            rows_with_diff = np.unique(diff_array[0])
             cols_with_diff = np.unique(diff_array[1])        
              
             ## Pass only columns and rows which have at least one difference
