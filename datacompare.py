@@ -162,11 +162,12 @@ class DataComp(object):
            
     def compare_data(self):
         """ Completely compare the loaded left and right data sets.
-        Displaying both testing message and returning five item dictionary for exploration including:
+        Displaying both testing message and returning six item dictionary for exploration including:
             left_data: The left data loaded, but subset to include only shared columns with right
             right_data: The right data loaded, but subset to include only shared columns with left
             left_not_right_data: If any, rows in left data not found in right based on shared primary key (default is left most in each data set, unless set_key method used)
             right_not_left_data: If any, rows in right data not found in left based on shared primary key
+            diff_summary: Summary level difference at a data-set/column level
             diff_values: Matched rows where at least one value is different, columns with at least one different are moved to left of PK, with different values delimited by pipe
         Examples
         --------
@@ -182,11 +183,13 @@ class DataComp(object):
         self._compare_row_counts()
         ## Compare values for matched rows
         self._compare_values()
+        ## Return data for inspection as dictionary as this can be easily explored in spyder IDE (and likely others...)
         d = {}
         d["left_data"] = self.left_data
         d["right_data"] = self.right_data
         d["left_not_right_data"] = self.left_not_right_data
         d["right_not_left_data"] = self.right_not_left_data
+        d["diff_summary"] = self.diff_summary
         d["diff_values"] = self.diff_values
         return d
         
@@ -219,9 +222,12 @@ class DataComp(object):
             left_cols_not_right,"\n\nColumns in right but not in left\n",right_cols_not_left)
             
         assert len(common_cols) >= 2, "Require at least one common column in data sets for comparison"
-            
+
+          
         self.right_data = self.right_data[common_cols]
         self.left_data = self.left_data[common_cols]
+        
+         
         
     
     def _compare_row_counts(self):
@@ -234,12 +240,42 @@ class DataComp(object):
         
         self.left_not_right_data = pd.merge(self.left_data, left_not_right_pks, how='inner', on="-PK")
         self.right_not_left_data = pd.merge(self.right_data, right_not_left_pks, how='inner', on="-PK")
+
+
+        ## At this point can start to build diff_summary table, which will be added to in compare_values method
+
+        
+        self.diff_summary = pd.DataFrame(data= {"LeftRowCount" : self.left_data.shape[0], \
+            "RightRowCount" : self.right_data.shape[0], \
+            "CommonRowCount" : common_pks.shape[0]}, index = self.left_data.columns,\
+            columns = ["LeftRowCount","RightRowCount","CommonRowCount"])
+            
+        self.diff_summary["LeftSums"] = np.nan
+        self.diff_summary["RightSums"] = np.nan
+        self.diff_summary["TotalError"] = np.nan
+        self.diff_summary["TotalPctError"] = np.nan
+        self.diff_summary["LeftMeans"] = np.nan
+        self.diff_summary["RightMeans"] = np.nan
+
+        #For numeric columns except PK, want to calculate summary statistics before subsetting datasets on common PKs
+        for col in self.left_data.columns:
+            if self.left_data[col].dtype in [np.int32,np.int64,np.float32,np.float64] and col != "-PK":
+                self.diff_summary.loc[col,"LeftSums"] = self.left_data[col].sum()
+                self.diff_summary.loc[col,"RightSums"] = self.right_data[col].sum()
+                self.diff_summary.loc[col,"TotalError"] = self.diff_summary.loc[col,"LeftSums"] - self.diff_summary.loc[col,"RightSums"]
+                if self.diff_summary.loc[col,"LeftSums"] != 0:
+                    self.diff_summary.loc[col,"TotalPctError"] = self.diff_summary.loc[col,"TotalError"] / self.diff_summary.loc[col,"LeftSums"]
+                self.diff_summary.loc[col,"LeftMeans"] = self.left_data[col].mean()
+                self.diff_summary.loc[col,"RightMeans"] = self.right_data[col].mean()
         
         self.left_data = pd.merge(self.left_data, common_pks, how='inner', on="-PK")
         self.right_data = pd.merge(self.right_data, common_pks, how='inner', on="-PK")
         
         print("Rows matched in both sets\n",str(self.left_data.shape[0]),"\n\nRows in left set not in right\n",\
             str(self.left_not_right_data.shape[0]),"\n\nRows in right set not in left\n",str(self.right_not_left_data.shape[0]))        
+            
+
+            
 
     def _compare_values(self):
         """ Compare the values of those rows commont to both sets"""
@@ -249,7 +285,12 @@ class DataComp(object):
         right_data_str = self.right_data.applymap(self._convert_to_str)
 
         #Return the position of the values which are not equal
-        diff_array = np.where(left_data_str.values != right_data_str.values) 
+        diff_array = np.where(left_data_str.values != right_data_str.values)
+
+        colsdiff = diff_array[1]
+        colsdiff_counts = np.bincount(colsdiff)
+        print("Cols diff",colsdiff_counts,"diff_summary shape",self.diff_summary.shape)
+        ##self.diff_summary["ValuesDifferCount"] = colsdiff_counts
         
         if len(diff_array[0]) == 0:
             self.diff_values = None
