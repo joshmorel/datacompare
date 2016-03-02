@@ -15,6 +15,13 @@ def get_file_paths(path):
     Parameters
     ----------
     path : Directory path where scripts are stored 
+    
+    Returns
+    -------
+    get_file_paths : dict
+        Dictionary of file paths in directory with file names (before first period) 
+        as keys.
+    
     Examples
     --------
     >>> sqls = "C:/mysqlfiles/"
@@ -41,6 +48,7 @@ class DataComp(object):
         default None
     datetofrom: Two-element tuple containing date from and date to, to insert into SQL script. Will be ignored for txt source. Must be YYYY-MM-DD format.
         default ("2015-04-01","2015-04-02")
+        
     Examples
     --------
     >>> dc1 = DataComp("C:/cnxn.ini","sales",sqls["left"],("2015-04-01","2015-05-01"))
@@ -169,9 +177,26 @@ class DataComp(object):
             right_not_left_data: If any, rows in right data not found in left based on shared primary key
             diff_summary: Summary level difference at a data-set/column level
             diff_values: Matched rows where at least one value is different, columns with at least one different are moved to left of PK, with different values delimited by pipe
+            
+        Returns
+        -------
+        compare_data : dict
+            Dictionary of data frames described above
+            
         Examples
         --------
         >>> dict_data = dc1.compare_data()
+        >>> dict_data["diff_summary"]
+                         LeftRowCount  RightRowCount  CommonRowCount  DiffValCount  \
+             -PK                10            11             9           0   
+             NumericCol         10            11             9           3   
+             StringCol          10            11             9           1   
+             
+                         LeftSums  RightSums  TotalDiff  TotalPctDiff  LeftMeans  RightMeans  
+             -PK            NaN        NaN        NaN           NaN        NaN         NaN  
+             NumericCol     470        410        60            0.1463414  47.0       41.0
+             StringCol      NaN        NaN        NaN           NaN        NaN         NaN                
+        
         """
         if self.right_data is None:
             raise ValueError('right data has not yet been added, use add_right_data function')
@@ -179,6 +204,21 @@ class DataComp(object):
         self._check_duplicate_pk()
         ## Only want to compare those columns that match, but still report on those columns in one dataset but not in others
         self._subset_on_common()
+
+        ## Once the above checks are complete the difference summary table can start to be built
+        
+        self.diff_summary = pd.DataFrame(data= {"LeftRowCount" : self.left_data.shape[0], \
+            "RightRowCount" : self.right_data.shape[0]},index=self.left_data.columns)
+
+        self.diff_summary["CommonRowCount"] = np.nan
+        self.diff_summary["DiffValCount"] = np.nan
+        self.diff_summary["LeftSums"] = np.nan
+        self.diff_summary["RightSums"] = np.nan
+        self.diff_summary["TotalDiff"] = np.nan
+        self.diff_summary["TotalPctDiff"] = np.nan
+        self.diff_summary["LeftMeans"] = np.nan
+        self.diff_summary["RightMeans"] = np.nan
+
         ## Compare rows in two sets based on common key and report on differences
         self._compare_row_counts()
         ## Compare values for matched rows
@@ -241,30 +281,16 @@ class DataComp(object):
         self.left_not_right_data = pd.merge(self.left_data, left_not_right_pks, how='inner', on="-PK")
         self.right_not_left_data = pd.merge(self.right_data, right_not_left_pks, how='inner', on="-PK")
 
-
-        ## At this point can start to build diff_summary table, which will be added to in compare_values method
-
-        
-        self.diff_summary = pd.DataFrame(data= {"LeftRowCount" : self.left_data.shape[0], \
-            "RightRowCount" : self.right_data.shape[0], \
-            "CommonRowCount" : common_pks.shape[0]}, index = self.left_data.columns,\
-            columns = ["LeftRowCount","RightRowCount","CommonRowCount"])
-            
-        self.diff_summary["LeftSums"] = np.nan
-        self.diff_summary["RightSums"] = np.nan
-        self.diff_summary["TotalError"] = np.nan
-        self.diff_summary["TotalPctError"] = np.nan
-        self.diff_summary["LeftMeans"] = np.nan
-        self.diff_summary["RightMeans"] = np.nan
+        self.diff_summary["CommonRowCount"] = common_pks.shape[0]
 
         #For numeric columns except PK, want to calculate summary statistics before subsetting datasets on common PKs
         for col in self.left_data.columns:
             if self.left_data[col].dtype in [np.int32,np.int64,np.float32,np.float64] and col != "-PK":
                 self.diff_summary.loc[col,"LeftSums"] = self.left_data[col].sum()
                 self.diff_summary.loc[col,"RightSums"] = self.right_data[col].sum()
-                self.diff_summary.loc[col,"TotalError"] = self.diff_summary.loc[col,"LeftSums"] - self.diff_summary.loc[col,"RightSums"]
+                self.diff_summary.loc[col,"TotalDiff"] = self.diff_summary.loc[col,"LeftSums"] - self.diff_summary.loc[col,"RightSums"]
                 if self.diff_summary.loc[col,"LeftSums"] != 0:
-                    self.diff_summary.loc[col,"TotalPctError"] = self.diff_summary.loc[col,"TotalError"] / self.diff_summary.loc[col,"LeftSums"]
+                    self.diff_summary.loc[col,"TotalPctDiff"] = self.diff_summary.loc[col,"TotalDiff"] / self.diff_summary.loc[col,"LeftSums"]
                 self.diff_summary.loc[col,"LeftMeans"] = self.left_data[col].mean()
                 self.diff_summary.loc[col,"RightMeans"] = self.right_data[col].mean()
         
@@ -284,13 +310,19 @@ class DataComp(object):
         left_data_str = self.left_data.applymap(self._convert_to_str)
         right_data_str = self.right_data.applymap(self._convert_to_str)
 
-        #Return the position of the values which are not equal
+        ## Return the position of the values which are not equal
         diff_array = np.where(left_data_str.values != right_data_str.values)
 
+        ## Count up the number of difference by column using positional index
         colsdiff = diff_array[1]
         colsdiff_counts = np.bincount(colsdiff)
-        print("Cols diff",colsdiff_counts,"diff_summary shape",self.diff_summary.shape)
-        ##self.diff_summary["ValuesDifferCount"] = colsdiff_counts
+        
+        ## Need to pad val diff summary to total length of columns
+        ## as colsdiff_counts will only be as long as the position of final column with any errors
+        
+        colsdiff_length = self.diff_summary.shape[0]
+        colsdiff_counts = np.lib.pad(colsdiff_counts, (0,colsdiff_length-len(colsdiff_counts)), 'constant', constant_values=(0))
+        self.diff_summary["DiffValCount"] = colsdiff_counts
         
         if len(diff_array[0]) == 0:
             self.diff_values = None

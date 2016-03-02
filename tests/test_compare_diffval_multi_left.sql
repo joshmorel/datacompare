@@ -7,7 +7,7 @@ SELECT  [FactEventKey]
       ,[OccurrenceDateKey]
 	  ,case when AvgTone < -8 then AvgTone*1.1
 		else AvgTone end as AvgTone
-	  ,replace(action_dg.GeoCountryCode,'S','') as CountryCode
+	  ,replace(action_dg.GeoCountryCode,'S','') as GeoCountryCode
       ,NumMentions
 	  ,SourceURL 
 	  ,Actor1Key
