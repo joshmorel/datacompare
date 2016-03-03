@@ -76,7 +76,7 @@ class DataComp(object):
             set right_cnxn_name = None for DataFrame
         right_script_path: Directory path to SQL script. If None, then expected is txt file and therefore no script
             default None
-        DataFrame: A pandas DataFrame named object in scope
+        DataFrame: A pandas DataFrame, can be used if right_cnxn_name = None
 
         Examples
         --------
@@ -88,10 +88,7 @@ class DataComp(object):
         self.right_cnxn_name = right_cnxn_name
         self.right_script_path = right_script_path
         if right_cnxn_name is None:
-            df = DataFrame
-            df.insert(0,"-PK",df.iloc[:,0])
-            df = df.sort_values(by = ["-PK"])
-            self.right_data = df
+            self.right_data = self._index_data(df=DataFrame)
         else:
             self.right_data, self.right_sql = self._get_data(cnxn_name = self.right_cnxn_name, script_path = self.right_script_path,**kwargs)
 
@@ -154,8 +151,7 @@ class DataComp(object):
                 df = pd.read_sql(sql_script,cnxn)
                 assert df.shape[0] > 0, "The SQL executed does not return any rows, check " + sql_script
                 ## Basic assumption is left most column is primary key for comparison. This can be set later
-                df.insert(0,"-PK",df.iloc[:,0])
-                df = df.sort_values(by = ["-PK"])
+                df = self._index_data(df)
                 return df
             except TypeError:
                 raise AssertionError("SQL script loaded but could not return a dataframe, check to make sure a result-set is actually returned")
@@ -163,9 +159,7 @@ class DataComp(object):
     def _populate_dataframe_from_txt(self,txt_path,**kwargs):
         """Creates dataframe from txt file, **kwargs for read_table keyword arguments such as non-tab sep"""
         df = pd.read_table(txt_path,**kwargs)
-        ## Basic assumption is left most column is primary key for comparison. This can be set later
-        df.insert(0,"-PK",df.iloc[:,0])
-        df = df.sort_values(by = ["-PK"])
+        df = self._index_data(df)
         return df    
            
     def compare_data(self):
@@ -263,9 +257,10 @@ class DataComp(object):
             
         assert len(common_cols) >= 2, "Require at least one common column in data sets for comparison"
 
-          
-        self.right_data = self.right_data[common_cols]
-        self.left_data = self.left_data[common_cols]
+        self.common_cols = common_cols
+        
+        #self.right_data = self.right_data[common_cols]
+        #self.left_data = self.left_data[common_cols]
         
          
         
@@ -273,14 +268,14 @@ class DataComp(object):
     def _compare_row_counts(self):
         """ Find rows not common to both sets, report on them, and store these findings"""
 
-        merged_data = pd.merge(self.left_data, self.right_data, how='outer', on="-PK")
-        right_not_left_pks = merged_data[pd.isnull(merged_data.iloc[:,1])][["-PK"]]
-        left_not_right_pks = merged_data[pd.isnull(merged_data.iloc[:,-1])][["-PK"]]
-        common_pks = pd.merge(self.left_data, self.right_data, how='inner', on="-PK")[["-PK"]]
+        pk_left = self.left_data.index
+        pk_right = self.right_data.index
         
-        self.left_not_right_data = pd.merge(self.left_data, left_not_right_pks, how='inner', on="-PK")
-        self.right_not_left_data = pd.merge(self.right_data, right_not_left_pks, how='inner', on="-PK")
-
+        self.left_not_right_data = self.left_data[~pk_left.isin(pk_right)]
+        self.right_not_left_data = self.right_data[~pk_right.isin(pk_left)]
+        
+        common_pks = pk_left[pk_left.isin(pk_right)]
+        
         self.diff_summary["CommonRowCount"] = common_pks.shape[0]
 
         #For numeric columns except PK, want to calculate summary statistics before subsetting datasets on common PKs
@@ -294,10 +289,9 @@ class DataComp(object):
                 self.diff_summary.loc[col,"LeftMeans"] = self.left_data[col].mean()
                 self.diff_summary.loc[col,"RightMeans"] = self.right_data[col].mean()
         
-        self.left_data = pd.merge(self.left_data, common_pks, how='inner', on="-PK")
-        self.right_data = pd.merge(self.right_data, common_pks, how='inner', on="-PK")
+        self.common_pks = common_pks
         
-        print("Rows matched in both sets\n",str(self.left_data.shape[0]),"\n\nRows in left set not in right\n",\
+        print("Rows matched in both sets\n",str(self.diff_summary["CommonRowCount"]),"\n\nRows in left set not in right\n",\
             str(self.left_not_right_data.shape[0]),"\n\nRows in right set not in left\n",str(self.right_not_left_data.shape[0]))        
             
 
@@ -305,10 +299,15 @@ class DataComp(object):
 
     def _compare_values(self):
         """ Compare the values of those rows commont to both sets"""
-        
+
+        ## Can only compare common cols and row pks        
+        left_data_comp = self.left_data.loc[self.common_pks][self.common_cols]
+        right_data_comp = self.right_data.loc[self.common_pks][self.common_cols]
+
         ## First convert all elements to string, including conversion of null values as easier to work with, assume data type validation is not a concern
-        left_data_str = self.left_data.applymap(self._convert_to_str)
-        right_data_str = self.right_data.applymap(self._convert_to_str)
+        
+        left_data_str = left_data_comp.applymap(self._convert_to_str)
+        right_data_str = right_data_comp.applymap(self._convert_to_str)
 
         ## Return the position of the values which are not equal
         diff_array = np.where(left_data_str.values != right_data_str.values)
@@ -365,7 +364,6 @@ class DataComp(object):
         side : the data set to set key on, either "left", "right" or "both"
             default "left"
         col : the column name to set as a key
-            default "-PK"
         Examples
         --------
         >>> dc1.set_key("both","Employee")
@@ -374,21 +372,28 @@ class DataComp(object):
             assert self.right_data is not None, "Right data set must exist"
             assert col in self.left_data.columns, "Column specified as key must be column in left data set, check spelling and case"
             assert col in self.right_data.columns, "Column specified as key must be column in right data set, confirm right exists, check spelling and case"
-            self.left_data["-PK"] = self.left_data[col]
-            self.right_data["-PK"] = self.right_data[col]
-            self.left_data = self.left_data.sort_values(by = ["-PK"])
-            self.right_data = self.right_data.sort_values(by = ["-PK"])            
+
+            self.left_data = self._index_data(df = self.left_data,col = col)
+            self.right_data = self._index_data(df = self.right_data,col = col)
+
         elif side == "left":
             assert col in self.left_data.columns, "Column specified as key must be column in left data set, check spelling and case"
-            self.left_data["-PK"] = self.left_data[col]
-            self.left_data = self.left_data.sort_values(by = ["-PK"])
+            self.left_data = self._index_data(df = self.left_data,col = col)
         elif side == "right":
             assert self.right_data is not None, "Right data set must exist"
             assert col in self.right_data.columns, "Column specified as key must be column in right data set, confirm right exists, or check spelling and case"
-            self.right_data["-PK"] = self.right_data[col]
-            self.right_data = self.right_data.sort_values(by = ["-PK"])            
+            self.right_data = self._index_data(df = self.right_data,col = col)
         else:
             raise AssertionError('side must be both, left or right')
             
-            
+    def _index_data(self,df,col=None):
+        """PK for comparison is left-most (position 0) by default unless specified (e.g. via the set_key function)"""
+        if col is None:
+            df.insert(0,"-PK",df.iloc[:,0])
+        else:
+            df["-PK"] = df[col]
+        df = df.sort_values(by = ["-PK"])
+        df.index = df["-PK"]
+        return df
+
         

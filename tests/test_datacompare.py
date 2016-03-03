@@ -125,6 +125,13 @@ class TestMyFunctions(unittest.TestCase):
         testdc.add_right_data("GDELT","test_compare_diffvalcount_right.sql")
         testdc_dict = testdc.compare_data()
         self.assertTrue(sum(testdc_dict["diff_summary"]["DiffValCount"]) == 3,"Differing value count failed")
+    def test_diff_row_null_counts(self):
+        print("test_diff_row_null_counts")
+        testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_compare_diffrow_null_left.sql",datetofrom=('2015-09-29','2015-09-30'))
+        testdc.add_right_data("GDELT","test_compare_diffrow_null_right.sql")
+        testdc_dict = testdc.compare_data()
+        self.assertTrue(testdc_dict["right_not_left_data"].shape[0] == 1,"Differing rows with nulls failed")
+
      
 if __name__ == '__main__':
     unittest.main(exit=False)
