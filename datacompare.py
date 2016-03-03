@@ -192,11 +192,18 @@ class DataComp(object):
              StringCol      NaN        NaN        NaN           NaN        NaN         NaN                
         
         """
-        if self.right_data is None:
-            raise ValueError('right data has not yet been added, use add_right_data function')
-           
-        self._check_duplicate_pk()
-        ## Only want to compare those columns that match, but still report on those columns in one dataset but not in others
+        
+        ## Can only compare once data has been added to right
+        assert self.right_data is not None, "right data has not yet been added, use add_right_data function"
+
+        ## Can only compare data where each set's PK is unique
+        assert self.left_data.index.duplicated().sum() == 0, "left PK is not unique, use set_key method on unique columns. \n Example: " + \
+            str(self.left_data.index[self.left_data.index.duplicated()].values[0])
+
+        assert self.right_data.index.duplicated().sum() == 0, "right PK is not unique, use set_key method on unique columns. \n Example: " + \
+            str(self.right_data.index[self.right_data.index.duplicated()].values[0])
+
+        ## Only want to compare those columns that match while also reporting on those columns in one dataset but not in others
         self._subset_on_common()
 
         ## Once the above checks are complete the difference summary table can start to be built
@@ -227,16 +234,6 @@ class DataComp(object):
         d["diff_values"] = self.diff_values
         return d
         
-    def _check_duplicate_pk(self):
-        """ Check to make sure the set PK for both sets has no duplicates"""
-        left_pk_count = pd.value_counts(self.left_data["-PK"])
-        left_pk_count = left_pk_count[left_pk_count>1]
-        assert left_pk_count.shape[0] == 0, "PK of left data set is not unique, cannot complete comparison"
-        right_pk_count = pd.value_counts(self.right_data["-PK"])
-        right_pk_count = right_pk_count[right_pk_count>1]
-        assert right_pk_count.shape[0] == 0, "PK of right data set is not unique, cannot complete comparison"
-       
-   
     def _subset_on_common(self):
         """ Find common columns in two data sets, and subset each set on those columns"""
         def common_elements(list1, list2):
@@ -259,12 +256,6 @@ class DataComp(object):
 
         self.common_cols = common_cols
         
-        #self.right_data = self.right_data[common_cols]
-        #self.left_data = self.left_data[common_cols]
-        
-         
-        
-    
     def _compare_row_counts(self):
         """ Find rows not common to both sets, report on them, and store these findings"""
 
@@ -294,9 +285,6 @@ class DataComp(object):
         print("Rows matched in both sets\n",str(self.diff_summary["CommonRowCount"]),"\n\nRows in left set not in right\n",\
             str(self.left_not_right_data.shape[0]),"\n\nRows in right set not in left\n",str(self.right_not_left_data.shape[0]))        
             
-
-            
-
     def _compare_values(self):
         """ Compare the values of those rows commont to both sets"""
 
