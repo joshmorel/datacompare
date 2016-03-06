@@ -18,6 +18,14 @@ class TestMyFunctions(unittest.TestCase):
         print("test_load_norows")
         with self.assertRaises(AssertionError):
             dc.DataComp(test_cnxn_path,"GDELT","test_load_norows.sql",('2015-09-29','2015-09-30'))
+
+    def test_diff_cols(self):
+        print("test_diff_cols")
+        testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_compare_diffcol_left.sql",datetofrom=('2015-09-29','2015-09-30'))
+        testdc.add_right_data("GDELT","test_compare_diffcol_right.sql")
+        testdc_dict = testdc.compare_data()
+        self.assertTrue(testdc_dict["left_data"].shape[1] > testdc_dict["diff_values"].shape[1],"Differing rows with nulls failed")
+
     def test_load_nocols(self):
         print("test_load_nocols")
         with self.assertRaises(AssertionError):
@@ -118,13 +126,13 @@ class TestMyFunctions(unittest.TestCase):
         testdc.add_right_data("GDELT","test_compare_diffval_right.sql")
         testdc_dict = testdc.compare_data()
         self.assertTrue((testdc_dict["left_not_right_data"].shape[0] == 0) and (testdc_dict["right_not_left_data"].shape[0] == 0)\
-            and (max(testdc_dict["diff_summary"]["DiffValCount"]) > 0,"Differing values failed"))
+            and (sum(testdc_dict["diff_summary"]["DiffValCount"].apply(int)) > 0,"Differing values failed"))
     def test_diff_val_counts(self):
         print("test_diff_val_counts")
         testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_compare_diffvalcount_left.sql",datetofrom=('2015-09-29','2015-09-30'))
         testdc.add_right_data("GDELT","test_compare_diffvalcount_right.sql")
         testdc_dict = testdc.compare_data()
-        self.assertTrue(sum(testdc_dict["diff_summary"]["DiffValCount"]) == 3,"Differing value count failed")
+        self.assertTrue(sum(testdc_dict["diff_summary"]["DiffValCount"].apply(int)) == 3,"Differing value count failed")
     def test_diff_row_null_counts(self):
         print("test_diff_row_null_counts")
         testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_compare_diffrow_null_left.sql",datetofrom=('2015-09-29','2015-09-30'))

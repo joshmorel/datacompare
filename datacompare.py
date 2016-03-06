@@ -48,6 +48,8 @@ class DataComp(object):
         default None
     datetofrom: Two-element tuple containing date from and date to, to insert into SQL script. Will be ignored for txt source. Must be YYYY-MM-DD format.
         default ("2015-04-01","2015-04-02")
+    sql_timeout: Number of seconds after which a timeout will occur and the query will be cancelled
+        default 30
         
     Examples
     --------
@@ -205,22 +207,19 @@ class DataComp(object):
         assert self.right_data.index.duplicated().sum() == 0, "right PK is not unique, use set_key method on unique columns. \n Example: " + \
             str(self.right_data.index[self.right_data.index.duplicated()].values[0])
 
-        ## Only want to compare those columns that match while also reporting on those columns in one dataset but not in others
-        self._subset_on_common()
 
-        ## Once the above checks are complete the difference summary table can start to be built
-        
-        self.diff_summary = pd.DataFrame(data= {"LeftRowCount" : self.left_data.shape[0], \
-            "RightRowCount" : self.right_data.shape[0]},index=self.left_data.columns)
+        ## Difference table can start to be built, before any comparisons are done
+        self.diff_summary = pd.DataFrame(data= {"LeftRowCount" : '{:,}'.format(self.left_data.shape[0]), \
+            "RightRowCount" : '{:,}'.format(self.right_data.shape[0])},index=self.left_data.columns)
 
-        self.diff_summary["CommonRowCount"] = np.nan
-        self.diff_summary["DiffValCount"] = np.nan
-        self.diff_summary["LeftSums"] = np.nan
-        self.diff_summary["RightSums"] = np.nan
-        self.diff_summary["TotalDiff"] = np.nan
-        self.diff_summary["TotalPctDiff"] = np.nan
-        self.diff_summary["LeftMeans"] = np.nan
-        self.diff_summary["RightMeans"] = np.nan
+        self.diff_summary["CommonRowCount"] = None
+        self.diff_summary["DiffValCount"] = None
+        self.diff_summary["LeftSums"] = None
+        self.diff_summary["RightSums"] = None
+        self.diff_summary["TotalDiff"] = None
+        self.diff_summary["TotalPctDiff"] = None
+        self.diff_summary["LeftMeans"] = None
+        self.diff_summary["RightMeans"] = None
 
         ## Compare rows in two sets based on common key and report on differences
         self._compare_row_counts()
@@ -230,64 +229,70 @@ class DataComp(object):
         d = {}
         
         ## Convert all numeric nulls to -99999 to avoid spyder issue #2991 from causing warning issues
-        d["left_data"] = self.left_data.applymap(self._convert_for_display)
-        d["right_data"] = self.right_data.applymap(self._convert_for_display)
-        d["left_not_right_data"] = self.left_not_right_data.applymap(self._convert_for_display)
-        d["right_not_left_data"] = self.right_not_left_data.applymap(self._convert_for_display)
-        d["diff_summary"] = self.diff_summary.applymap(self._convert_for_display)
+        d["left_data"] = self.left_data
+        d["right_data"] = self.right_data
+        d["left_not_right_data"] = self.left_not_right_data
+        d["right_not_left_data"] = self.right_not_left_data
+        d["diff_summary"] = self.diff_summary
         d["diff_values"] = self.diff_values
         return d
-        
-    def _subset_on_common(self):
-        """ Find common columns in two data sets, and subset each set on those columns"""
-        def common_elements(list1, list2):
-            return [element for element in list1 if element in list2]
-        def excluded_elements(list1, list2):
-            return [element for element in list1 if element not in list2]
-        
-        left_cols = self.left_data.columns.tolist()
-        right_cols = self.right_data.columns.tolist()   
-        common_cols = common_elements(right_cols,left_cols)
-        common_cols.sort()
-        
-        left_cols_not_right = excluded_elements(left_cols,common_cols)
-        right_cols_not_left = excluded_elements(right_cols,common_cols)
-      
-        print("Common columns from both data compared\n",common_cols,"\n\nColumns in left but not in right\n",\
-            left_cols_not_right,"\n\nColumns in right but not in left\n",right_cols_not_left)
-            
-        assert len(common_cols) >= 2, "Require at least one common column in data sets for comparison"
-
-        self.common_cols = common_cols
         
     def _compare_row_counts(self):
         """ Find rows not common to both sets, report on them, and store these findings"""
 
-        pk_left = self.left_data.index
-        pk_right = self.right_data.index
-        
-        self.left_not_right_data = self.left_data[~pk_left.isin(pk_right)]
-        self.right_not_left_data = self.right_data[~pk_right.isin(pk_left)]
-        
-        common_pks = pk_left[pk_left.isin(pk_right)]
-        
-        self.diff_summary["CommonRowCount"] = common_pks.shape[0]
+        ## First identify common columns
+        left_cols = self.left_data.columns
+        right_cols = self.right_data.columns
+        common_cols = left_cols[left_cols.isin(right_cols)]
 
-        #For numeric columns except PK, want to calculate summary statistics before subsetting datasets on common PKs
-        for col in self.left_data.columns:
-            if self.left_data[col].dtype in [np.int32,np.int64,np.float32,np.float64] and col != "-PK":
-                self.diff_summary.loc[col,"LeftSums"] = self.left_data[col].sum()
-                self.diff_summary.loc[col,"RightSums"] = self.right_data[col].sum()
-                self.diff_summary.loc[col,"TotalDiff"] = self.diff_summary.loc[col,"LeftSums"] - self.diff_summary.loc[col,"RightSums"]
-                if self.diff_summary.loc[col,"LeftSums"] != 0:
-                    self.diff_summary.loc[col,"TotalPctDiff"] = self.diff_summary.loc[col,"TotalDiff"] / self.diff_summary.loc[col,"LeftSums"]
-                self.diff_summary.loc[col,"LeftMeans"] = self.left_data[col].mean()
-                self.diff_summary.loc[col,"RightMeans"] = self.right_data[col].mean()
+        left_cols_not_right = left_cols[~left_cols.isin(common_cols)]
+        right_cols_not_left = right_cols[~right_cols.isin(common_cols)]
+
+        common_cols = common_cols.sort_values()
+
+        print("\nData Comparison Results:\nColumns common to both data sets compared for equality:\n\t",common_cols.values,\
+            "\n\nColumns in left but not in right:\n\t",left_cols_not_right.values,\
+            "\n\nColumns in right but not in left\n\t",right_cols_not_left.values)
+
+        assert len(common_cols) >= 2, "Require at least one common column in data sets for comparison"
         
+        self.common_cols = common_cols
+
+        left_pks = self.left_data.index
+        right_pks = self.right_data.index
+        
+        common_pks = left_pks[left_pks.isin(right_pks)]
+
         self.common_pks = common_pks
         
-        print("Rows matched in both sets\n",str(self.diff_summary["CommonRowCount"]),"\n\nRows in left set not in right\n",\
-            str(self.left_not_right_data.shape[0]),"\n\nRows in right set not in left\n",str(self.right_not_left_data.shape[0]))        
+        self.diff_summary["CommonRowCount"] = '{:,}'.format(common_pks.shape[0])
+
+        ## For numeric columns except PK, want to calculate summary statistics before subsetting datasets on common PKs
+        for col in self.left_data.columns:
+            if self.left_data[col].dtype in [np.int32,np.int64,np.float32,np.float64] and col != "-PK":
+                left_sum = self.left_data[col].sum()
+                right_sum = self.left_data[col].sum()
+                self.diff_summary.loc[col,"LeftSums"] = '{:,}'.format(left_sum)
+                self.diff_summary.loc[col,"RightSums"] = '{:,}'.format(right_sum)
+                self.diff_summary.loc[col,"TotalDiff"] = '{:,}'.format(left_sum - right_sum)
+                if left_sum != 0:
+                    self.diff_summary.loc[col,"TotalPctDiff"] = '{:%}'.format((left_sum - right_sum)/left_sum)
+                self.diff_summary.loc[col,"LeftMeans"] = '{:,}'.format(self.left_data[col].mean())
+                self.diff_summary.loc[col,"RightMeans"] = '{:,}'.format(self.right_data[col].mean())
+
+        
+        ## As we have now summarized the numeric columns, we can convert all numerics to strings in order to remove numpy nan
+        ## As the numpy nan triggers spyder IDE issue 2991
+        
+        self.left_data = self.left_data.applymap(self._convert_to_str)
+        self.right_data = self.right_data.applymap(self._convert_to_str)
+
+        self.left_not_right_data = self.left_data[~left_pks.isin(right_pks)]
+        self.right_not_left_data = self.right_data[~right_pks.isin(left_pks)]
+        
+        print("\nRows matched in both sets: ",str(common_pks.shape[0]),\
+        "\n\nRows in left set not in right: ",str(self.left_not_right_data.shape[0]),\
+        "\n\nRows in right set not in left: ",str(self.right_not_left_data.shape[0]))        
             
     def _compare_values(self):
         """ Compare the values of those rows commont to both sets"""
@@ -296,13 +301,8 @@ class DataComp(object):
         left_data_comp = self.left_data.loc[self.common_pks][self.common_cols]
         right_data_comp = self.right_data.loc[self.common_pks][self.common_cols]
 
-        ## First convert all elements to string, including conversion of null values as easier to work with, assume data type validation is not a concern
-        
-        left_data_str = left_data_comp.applymap(self._convert_to_str)
-        right_data_str = right_data_comp.applymap(self._convert_to_str)
-
         ## Return the position of the values which are not equal
-        diff_array = np.where(left_data_str.values != right_data_str.values)
+        diff_array = np.where(left_data_comp .values != right_data_comp.values)
 
         ## Count up the number of difference by column using positional index
         colsdiff = diff_array[1]
@@ -313,49 +313,44 @@ class DataComp(object):
         
         colsdiff_length = self.diff_summary.shape[0]
         colsdiff_counts = np.lib.pad(colsdiff_counts, (0,colsdiff_length-len(colsdiff_counts)), 'constant', constant_values=(0))
-        self.diff_summary["DiffValCount"] = colsdiff_counts
+
+
+        for i, diff_count in enumerate(colsdiff_counts):
+            self.diff_summary.iloc[i]["DiffValCount"] = '{:,}'.format(diff_count)
         
         if len(diff_array[0]) == 0:
+            print("\nFor matched rows, all values match")
             self.diff_values = None
         else:
             rows_with_diff = np.unique(diff_array[0])
             cols_with_diff = np.unique(diff_array[1])        
              
             ## Pass only columns and rows which have at least one difference
-            diff_panel = pd.Panel({"left":left_data_str.iloc[rows_with_diff,cols_with_diff],\
-                "right":right_data_str.iloc[rows_with_diff,cols_with_diff]})
+            diff_panel = pd.Panel({"left":left_data_comp.iloc[rows_with_diff,cols_with_diff],\
+                "right":right_data_comp.iloc[rows_with_diff,cols_with_diff]})
             diff_values = diff_panel.apply(self._report_diff, axis=0)
-            print("For matched rows,",str(len(rows_with_diff)),"of the rows have at least one different value among",str(len(cols_with_diff)),"columns flagged with differences")
+            print("\nFor matched rows,",str(len(rows_with_diff)),"of the rows have at least one different value among",str(len(cols_with_diff)),"columns flagged with differences")
             
             ## What to see all columns for contextual info for rows with at least some differences, but columns with differences at front
-            diff_rows = left_data_str.iloc[rows_with_diff,:]
+            diff_rows = left_data_comp.iloc[rows_with_diff,:]
             diff_rows = diff_rows[diff_rows.columns.delete(cols_with_diff)]
             diff_values = pd.concat([diff_values,diff_rows],axis=1)
             self.diff_values = diff_values
 
     def _convert_to_str(self,obj):
-        """to be used to convert all objects to strings and any None or NaN to blank string for ease of comparison"""
-        if pd.isnull(obj):
-            return ''
-        elif isinstance(obj,bool) or isinstance(obj,np.bool_):
+        """To be used to convert all objects to strings and any numpy nan to blank string for ease of comparison"""
+
+        ## Note 1: bool types in SQL are viewed as 1 or 0, so covert them here to int
+        ## Note 2: Depending on RDBMS, numerics may be returned as int or float, 
+            ## in such case covert all to float with 1 decimal places for comparison
+        if isinstance(obj,bool) or isinstance(obj,np.bool_):
             return str(int(obj))
         elif isinstance(obj,float):
-            return str(int(round(obj,0)))
+            return str(round(obj,1))
+        elif isinstance(obj,int):
+            return str(round(float(obj),1))
         else:
             return str(obj)
-
-    def _convert_for_display(self,obj):
-        """Convert nulls for display prior to loading into dictionary due to spyder issue
-        -99999 is null until this issue is solved"""
-        if pd.isnull(obj):
-            if isinstance(obj,float):
-                return -99999.0
-            elif isinstance(obj,int):
-                return -99999
-            else:
-                return obj
-        else:
-            return obj
     
     def _report_diff(self,x):
         """Returns difference from two sets with left and right values delimited by pipe"""
