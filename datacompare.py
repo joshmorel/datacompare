@@ -228,11 +228,13 @@ class DataComp(object):
         self._compare_values()
         ## Return data for inspection as dictionary as this can be easily explored in spyder IDE (and likely others...)
         d = {}
-        d["left_data"] = self.left_data
-        d["right_data"] = self.right_data
-        d["left_not_right_data"] = self.left_not_right_data
-        d["right_not_left_data"] = self.right_not_left_data
-        d["diff_summary"] = self.diff_summary
+        
+        ## Convert all numeric nulls to -99999 to avoid spyder issue #2991 from causing warning issues
+        d["left_data"] = self.left_data.applymap(self._convert_for_display)
+        d["right_data"] = self.right_data.applymap(self._convert_for_display)
+        d["left_not_right_data"] = self.left_not_right_data.applymap(self._convert_for_display)
+        d["right_not_left_data"] = self.right_not_left_data.applymap(self._convert_for_display)
+        d["diff_summary"] = self.diff_summary.applymap(self._convert_for_display)
         d["diff_values"] = self.diff_values
         return d
         
@@ -332,7 +334,7 @@ class DataComp(object):
             self.diff_values = diff_values
 
     def _convert_to_str(self,obj):
-        '''to be used to convert all objects to strings and any None or NaN to blank string for ease of comparison'''
+        """to be used to convert all objects to strings and any None or NaN to blank string for ease of comparison"""
         if pd.isnull(obj):
             return ''
         elif isinstance(obj,bool) or isinstance(obj,np.bool_):
@@ -341,6 +343,19 @@ class DataComp(object):
             return str(int(round(obj,0)))
         else:
             return str(obj)
+
+    def _convert_for_display(self,obj):
+        """Convert nulls for display prior to loading into dictionary due to spyder issue
+        -99999 is null until this issue is solved"""
+        if pd.isnull(obj):
+            if isinstance(obj,float):
+                return -99999.0
+            elif isinstance(obj,int):
+                return -99999
+            else:
+                return obj
+        else:
+            return obj
     
     def _report_diff(self,x):
         """Returns difference from two sets with left and right values delimited by pipe"""

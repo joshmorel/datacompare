@@ -5,7 +5,6 @@ import imp
 imp.reload(dc)
 
 import unittest
-import pyodbc
 import pandas as pd
 
 test_cnxn_path = "test_cnxn.ini"
