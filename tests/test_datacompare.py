@@ -5,6 +5,7 @@ import imp
 imp.reload(dc)
 
 import unittest
+import pyodbc
 import pandas as pd
 
 test_cnxn_path = "test_cnxn.ini"
@@ -131,6 +132,10 @@ class TestMyFunctions(unittest.TestCase):
         testdc.add_right_data("GDELT","test_compare_diffrow_null_right.sql")
         testdc_dict = testdc.compare_data()
         self.assertTrue(testdc_dict["right_not_left_data"].shape[0] == 1,"Differing rows with nulls failed")
+    def test_sql_timeout(self):
+        print("test_sql_timeout_default")
+        with self.assertRaises(pd.io.sql.DatabaseError):
+            dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_sql_timeout.sql",datetofrom=('2015-09-29','2015-09-30'),sql_timeout=1)
 
      
 if __name__ == '__main__':

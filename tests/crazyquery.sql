@@ -1,0 +1,1 @@
+SELECT top 1000000 * FROM GDELT.GDELT20.DimActor as a1 cross join GDELT.GDELT20.DimGeo as g1

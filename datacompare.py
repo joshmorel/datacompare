@@ -54,9 +54,10 @@ class DataComp(object):
     >>> dc1 = DataComp("C:/cnxn.ini","sales",sqls["left"],("2015-04-01","2015-05-01"))
     """
 
-    def __init__(self, cnxn_path,left_cnxn_name,left_script_path = None,datetofrom=("2015-04-01","2015-04-02"),**kwargs):
+    def __init__(self, cnxn_path,left_cnxn_name,left_script_path = None,datetofrom=("2015-04-01","2015-04-02"),sql_timeout = 30,**kwargs):
         """Gets connection information from ini file and loads left data into class attribute"""
         self.cnxn_path = cnxn_path
+        self.sql_timeout = sql_timeout
         self.left_cnxn_name = left_cnxn_name
         self.left_script_path = left_script_path
         self.datetofrom = datetofrom
@@ -148,6 +149,7 @@ class DataComp(object):
         '''With a valid SQL script and connection, loads SQL data into dataframe'''
         with pyodbc.connect(cnxn_string) as cnxn:
             try:
+                cnxn.timeout = self.sql_timeout
                 df = pd.read_sql(sql_script,cnxn)
                 assert df.shape[0] > 0, "The SQL executed does not return any rows, check " + sql_script
                 ## Basic assumption is left most column is primary key for comparison. This can be set later
