@@ -272,7 +272,7 @@ class DataComp(object):
         for col in self.left_data.columns:
             if self.left_data[col].dtype in [np.int32,np.int64,np.float32,np.float64] and col != "-PK":
                 left_sum = self.left_data[col].sum()
-                right_sum = self.left_data[col].sum()
+                right_sum = self.right_data[col].sum()
                 self.diff_summary.loc[col,"LeftSums"] = '{:,}'.format(left_sum)
                 self.diff_summary.loc[col,"RightSums"] = '{:,}'.format(right_sum)
                 self.diff_summary.loc[col,"TotalDiff"] = '{:,}'.format(left_sum - right_sum)
