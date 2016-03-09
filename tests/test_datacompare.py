@@ -143,6 +143,12 @@ class TestMyFunctions(unittest.TestCase):
         print("test_sql_timeout_default")
         with self.assertRaises(pd.io.sql.DatabaseError):
             dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_sql_timeout.sql",datetofrom=('2015-09-29','2015-09-30'),sql_timeout=1)
+    def test_sql_intfloatequal(self):
+        print("test_sql_intfloatequal")
+        testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_compare_intvsfloat_left.sql",datetofrom=('2015-09-29','2015-09-30'))
+        testdc.add_right_data("GDELT","test_compare_intvsfloat_right.sql")
+        testdc_dict = testdc.compare_data()
+        self.assertTrue(testdc_dict["diff_values"] is None,"Same int float compare failed")
 
      
 if __name__ == '__main__':

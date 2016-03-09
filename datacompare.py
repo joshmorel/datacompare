@@ -339,18 +339,18 @@ class DataComp(object):
 
     def _convert_to_str(self,obj):
         """To be used to convert all objects to strings and any numpy nan to blank string for ease of comparison"""
-
         ## Note 1: bool types in SQL are viewed as 1 or 0, so covert them here to int
         ## Note 2: Depending on RDBMS, numerics may be returned as int or float, 
             ## in such case covert all to float with 1 decimal places for comparison
-        if isinstance(obj,bool) or isinstance(obj,np.bool_):
-            return str(int(obj))
-        elif isinstance(obj,float):
-            return str(round(obj,1))
-        elif isinstance(obj,int):
-            return str(round(float(obj),1))
+        if pd.isnull(obj):
+            return 'null'
         else:
-            return str(obj)
+            try:
+                return str(round(float(obj),1))
+            except:
+                return str(obj)
+
+
     
     def _report_diff(self,x):
         """Returns difference from two sets with left and right values delimited by pipe"""
