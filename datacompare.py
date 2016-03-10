@@ -170,8 +170,6 @@ class DataComp(object):
     def compare_data(self):
         """ Completely compare the loaded left and right data sets.
         Displaying both testing message and returning six item dictionary for exploration including:
-            left_data: The left data loaded, but subset to include only shared columns with right
-            right_data: The right data loaded, but subset to include only shared columns with left
             left_not_right_data: If any, rows in left data not found in right based on shared primary key (default is left most in each data set, unless set_key method used)
             right_not_left_data: If any, rows in right data not found in left based on shared primary key
             diff_summary: Summary level difference at a data-set/column level
@@ -209,6 +207,8 @@ class DataComp(object):
             str(self.right_data.index[self.right_data.index.duplicated()].values[0])
 
 
+        ##self.diff_summary = None
+
         ## Difference table can start to be built, before any comparisons are done
         self.diff_summary = pd.DataFrame(data= {"LeftRowCount" : '{:,}'.format(self.left_data.shape[0]), \
             "RightRowCount" : '{:,}'.format(self.right_data.shape[0])},index=self.left_data.columns)
@@ -229,9 +229,6 @@ class DataComp(object):
         ## Return data for inspection as dictionary as this can be easily explored in spyder IDE (and likely others...)
         d = {}
         
-        ## Convert all numeric nulls to -99999 to avoid spyder issue #2991 from causing warning issues
-        d["left_data"] = self.left_data
-        d["right_data"] = self.right_data
         d["left_not_right_data"] = self.left_not_right_data
         d["right_not_left_data"] = self.right_not_left_data
         d["diff_summary"] = self.diff_summary
@@ -267,6 +264,7 @@ class DataComp(object):
         self.common_pks = common_pks
         
         self.diff_summary["CommonRowCount"] = '{:,}'.format(common_pks.shape[0])
+        
 
         ## For numeric columns except PK, want to calculate summary statistics before subsetting datasets on common PKs
         for col in self.left_data.columns:
@@ -303,7 +301,7 @@ class DataComp(object):
         right_data_comp = self.right_data.loc[self.common_pks][self.common_cols]
 
         ## Return the position of the values which are not equal
-        diff_array = np.where(left_data_comp .values != right_data_comp.values)
+        diff_array = np.where(left_data_comp.values != right_data_comp.values)
 
         ## Count up the number of difference by column using positional index
         colsdiff = diff_array[1]
@@ -315,13 +313,12 @@ class DataComp(object):
         colsdiff_length = self.diff_summary.shape[0]
         colsdiff_counts = np.lib.pad(colsdiff_counts, (0,colsdiff_length-len(colsdiff_counts)), 'constant', constant_values=(0))
 
-
-        for i, diff_count in enumerate(colsdiff_counts):
-            self.diff_summary.iloc[i]["DiffValCount"] = '{:,}'.format(diff_count)
+        self.diff_summary["DiffValCount"] = ['{:,}'.format(x) for x in colsdiff_counts]
         
         if len(diff_array[0]) == 0:
             print("\nFor matched rows, all values match")
             self.diff_values = None
+            
         else:
             rows_with_diff = np.unique(diff_array[0])
             cols_with_diff = np.unique(diff_array[1])        

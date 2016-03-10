@@ -24,7 +24,7 @@ class TestMyFunctions(unittest.TestCase):
         testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_compare_diffcol_left.sql",datetofrom=('2015-09-29','2015-09-30'))
         testdc.add_right_data("GDELT","test_compare_diffcol_right.sql")
         testdc_dict = testdc.compare_data()
-        self.assertTrue(testdc_dict["left_data"].shape[1] > testdc_dict["diff_values"].shape[1],"Differing rows with nulls failed")
+        self.assertTrue(testdc.left_data.shape[1] > testdc_dict["diff_values"].shape[1],"Differing rows with nulls failed")
 
     def test_load_nocols(self):
         print("test_load_nocols")
