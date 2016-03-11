@@ -236,6 +236,7 @@ class DataComp(object):
         self._compare_values()
         ## Return data for inspection as dictionary as this can be easily explored in spyder IDE (and likely others...)
         d = {}
+
         d["left_not_right_data"] = self.left_not_right_data
         d["right_not_left_data"] = self.right_not_left_data
         d["diff_values"] = self.diff_values
@@ -276,8 +277,6 @@ class DataComp(object):
         self.common_pks = common_pks
 
         ## Want to calculate summary statistics before subsetting datasets on common PKs, note bool is considered numeric as well for database comparison
-
-           
         summary_headers = ['left_count','left_total','left_mean','left_nulls','right_count','right_total','right_mean','right_nulls']
 
         combined_summary = [list(_col_profile(self.left_data[col])) + \
@@ -326,6 +325,7 @@ class DataComp(object):
         if len(diff_array[0]) == 0:
             print("\nFor matched rows, all values match")
             self.diff_values = None
+            
         else:
             rows_with_diff = np.unique(diff_array[0])
             cols_with_diff = np.unique(diff_array[1])        

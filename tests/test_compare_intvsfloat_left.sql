@@ -8,11 +8,14 @@ SELECT  [FactEventKey]
 	  ,cast(dd.FULL_DATE as datetime2(0)) as FullDate
       ,cast(NumMentions as int) as NumMentions
 	  	  ,SourceURL
+<<<<<<< HEAD
 		  ,cast(fe.IsRootEvent as bit) as IsRootEvent
       ,case when FactEventKey between 471391288 and 471391300
 		then null else 	
 		cast(NumMentions*1.1 as decimal(10,2)) end as NumMentionsFloatWNulls
 
+=======
+>>>>>>> 40e01b0382b4f66628c5831160f92463ac3bba82
 
   FROM [GDELT].[GDELT20].[FactEvent] as fe
 	inner join gdelt.gdelt20.DimGeo as action_dg

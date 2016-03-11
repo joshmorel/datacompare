@@ -7,12 +7,16 @@ SELECT  [FactEventKey]
       ,[OccurrenceDateKey]
 	  ,cast(dd.FULL_DATE as datetime) as FullDate
       ,cast(NumMentions as float) as NumMentions
+<<<<<<< HEAD
       ,case when FactEventKey between 471391288 and 471391300
 		then null else SourceURL end as SourceURL
 	,fe.IsRootEvent
 	,cast(NumMentions as int) as NumMentionsFloatWNulls
 
 
+=======
+	  ,SourceURL
+>>>>>>> 40e01b0382b4f66628c5831160f92463ac3bba82
   FROM [GDELT].[GDELT20].[FactEvent] as fe
 	inner join gdelt.gdelt20.DimGeo as action_dg
 		on fe.ActionGeoKey = action_dg.GeoKey
