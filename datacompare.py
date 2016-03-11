@@ -32,7 +32,7 @@ def _div_zero_str(numer,denom):
     elif denom == 0:
         return '0%'
     else:
-        return '{0:.2f}%'.format(numer/denom)
+        return '{0:.2f}%'.format(numer/denom*100)
 
 def get_file_paths(path):
     """ Creates dictionary of paths to files in a specific directory where keys are the file name (before first period).
@@ -285,7 +285,7 @@ class DataComp(object):
         self.diff_summary = pd.DataFrame(data = combined_summary , columns=summary_headers,index=common_cols)
         self.diff_summary["total_diff"] = self.diff_summary["left_total"] - self.diff_summary["right_total"]
         
-        self.diff_summary["total_diff_pct"] = [_div_zero_str(x,y) for x,y in zip(self.diff_summary["left_total"],self.diff_summary["total_diff"])]
+        self.diff_summary["total_diff_pct"] = [_div_zero_str(x,y) for x,y in zip(self.diff_summary["total_diff"],self.diff_summary["left_total"])]
 
         self.diff_summary["common_row_count"] = common_pks.shape[0]
 
