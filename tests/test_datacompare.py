@@ -13,7 +13,7 @@ class TestMyFunctions(unittest.TestCase):
     def test_load_normal(self):
         print("test_load_normal")
         testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_normal.sql",datetofrom=('2015-09-29','2015-09-30'))
-        self.assertEqual(testdc.left_data.shape,(1636, 21),"Normal Test failed")
+        self.assertEqual(testdc.left_data.shape[0],1636,"Normal Test failed")
     def test_load_norows(self):
         print("test_load_norows")
         with self.assertRaises(AssertionError):
@@ -24,7 +24,7 @@ class TestMyFunctions(unittest.TestCase):
         testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_compare_diffcol_left.sql",datetofrom=('2015-09-29','2015-09-30'))
         testdc.add_right_data("GDELT","test_compare_diffcol_right.sql")
         testdc_dict = testdc.compare_data()
-        self.assertTrue(testdc_dict["left_data"].shape[1] > testdc_dict["diff_values"].shape[1],"Differing rows with nulls failed")
+        self.assertTrue(testdc.left_data.shape[1] > testdc_dict["diff_values"].shape[1],"Differing rows with nulls failed")
 
     def test_load_nocols(self):
         print("test_load_nocols")
@@ -90,17 +90,17 @@ class TestMyFunctions(unittest.TestCase):
         print("test_setkey_asserterror1")
         with self.assertRaises(AssertionError):
             testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_normal.sql",datetofrom=('2015-09-29','2015-09-30'))
-            testdc.set_key("left","hello")
+            testdc.set_key(col="hello",side="left")
     def test_setkey_asserterror2(self):
         print("test_setkey_asserterror2")
         with self.assertRaises(AssertionError):
             testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_normal.sql",datetofrom=('2015-09-29','2015-09-30'))
-            testdc.set_key("both","NumSources")
+            testdc.set_key(col="NumSources",side="both")
     def test_compare_setkey(self):
         print("test_compare_setkey")
         testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_compare_setkey_left.sql",datetofrom=('2015-09-29','2015-09-30'))
         testdc.add_right_data("GDELT","test_compare_setkey_right.sql")
-        testdc.set_key("both","ActorKey")
+        testdc.set_key(col="ActorKey",side="both")
         testdc_dict = testdc.compare_data()
         self.assertTrue((testdc_dict["left_not_right_data"].shape[0] == 0) and (testdc_dict["right_not_left_data"].shape[0] == 0)\
             and (testdc_dict["diff_values"] is None),"Same result set comparison failed")
@@ -119,7 +119,7 @@ class TestMyFunctions(unittest.TestCase):
     def test_load_txt_pipe(self):
         print("test_load_txt_pipe")
         testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "txt_pipe",sep="|")
-        self.assertEqual(testdc.left_data.shape,(10,3),"Normal Test failed")
+        self.assertEqual(testdc.left_data.shape[0],10,"Normal Test failed")
     def test_diff_summary_value(self):
         print("test_diff_summary_value")
         testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_compare_diffval_left.sql",datetofrom=('2015-09-29','2015-09-30'))
@@ -143,6 +143,12 @@ class TestMyFunctions(unittest.TestCase):
         print("test_sql_timeout_default")
         with self.assertRaises(pd.io.sql.DatabaseError):
             dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_sql_timeout.sql",datetofrom=('2015-09-29','2015-09-30'),sql_timeout=1)
+    def test_sql_intfloatequal(self):
+        print("test_sql_intfloatequal")
+        testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_compare_intvsfloat_left.sql",datetofrom=('2015-09-29','2015-09-30'))
+        testdc.add_right_data("GDELT","test_compare_intvsfloat_right.sql")
+        testdc_dict = testdc.compare_data()
+        self.assertTrue(testdc_dict["diff_values"] is None,"Same int float compare failed")
 
      
 if __name__ == '__main__':

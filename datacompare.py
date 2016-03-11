@@ -7,6 +7,32 @@ import numpy as np
 import codecs
 import configparser as cp
 
+_numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64', 'bool']
+def _col_profile(col):
+    """Convenience function for profiling a column"""
+    count = len(col)
+    if col.dtype in _numerics:
+        total = col.sum()
+        mean = col.mean()
+    else:
+        total = None
+        mean = None
+    nulls = len(col) - col.count()
+    return count, total, mean, nulls
+    
+def _num_to_str(num): 
+    """Convenience function for converting a non-percent numeric to a nicely formatted string"""
+    return '{0:,.0f}'.format(num)
+
+
+def _div_zero_str(numer,denom):
+    """Convenience function for dividing by zero and formatting as a nice string"""
+    if pd.isnull(denom):
+        return 'nan'
+    elif denom == 0:
+        return '0%'
+    else:
+        return '{0:.2f}%'.format(numer/denom)
 
 def get_file_paths(path):
     """ Creates dictionary of paths to files in a specific directory where keys are the file name (before first period).
@@ -170,8 +196,6 @@ class DataComp(object):
     def compare_data(self):
         """ Completely compare the loaded left and right data sets.
         Displaying both testing message and returning six item dictionary for exploration including:
-            left_data: The left data loaded, but subset to include only shared columns with right
-            right_data: The right data loaded, but subset to include only shared columns with left
             left_not_right_data: If any, rows in left data not found in right based on shared primary key (default is left most in each data set, unless set_key method used)
             right_not_left_data: If any, rows in right data not found in left based on shared primary key
             diff_summary: Summary level difference at a data-set/column level
@@ -187,12 +211,10 @@ class DataComp(object):
         >>> dict_data = dc1.compare_data()
         >>> dict_data["diff_summary"]
                          LeftRowCount  RightRowCount  CommonRowCount  DiffValCount  \
-             -PK                10            11             9           0   
              NumericCol         10            11             9           3   
              StringCol          10            11             9           1   
              
                          LeftSums  RightSums  TotalDiff  TotalPctDiff  LeftMeans  RightMeans  
-             -PK            NaN        NaN        NaN           NaN        NaN         NaN  
              NumericCol     470        410        60            0.1463414  47.0       41.0
              StringCol      NaN        NaN        NaN           NaN        NaN         NaN                
         
@@ -208,34 +230,22 @@ class DataComp(object):
         assert self.right_data.index.duplicated().sum() == 0, "right PK is not unique, use set_key method on unique columns. \n Example: " + \
             str(self.right_data.index[self.right_data.index.duplicated()].values[0])
 
-
-        ## Difference table can start to be built, before any comparisons are done
-        self.diff_summary = pd.DataFrame(data= {"LeftRowCount" : '{:,}'.format(self.left_data.shape[0]), \
-            "RightRowCount" : '{:,}'.format(self.right_data.shape[0])},index=self.left_data.columns)
-
-        self.diff_summary["CommonRowCount"] = None
-        self.diff_summary["DiffValCount"] = None
-        self.diff_summary["LeftSums"] = None
-        self.diff_summary["RightSums"] = None
-        self.diff_summary["TotalDiff"] = None
-        self.diff_summary["TotalPctDiff"] = None
-        self.diff_summary["LeftMeans"] = None
-        self.diff_summary["RightMeans"] = None
-
         ## Compare rows in two sets based on common key and report on differences
         self._compare_row_counts()
         ## Compare values for matched rows
         self._compare_values()
         ## Return data for inspection as dictionary as this can be easily explored in spyder IDE (and likely others...)
         d = {}
-        
-        ## Convert all numeric nulls to -99999 to avoid spyder issue #2991 from causing warning issues
-        d["left_data"] = self.left_data
-        d["right_data"] = self.right_data
         d["left_not_right_data"] = self.left_not_right_data
         d["right_not_left_data"] = self.right_not_left_data
-        d["diff_summary"] = self.diff_summary
         d["diff_values"] = self.diff_values
+        
+        ## Format summary data and order in meaningful way
+        diff_summary_final = self.diff_summary.select_dtypes(include = _numerics).applymap(_num_to_str)
+        diff_summary_final = pd.concat([diff_summary_final,self.diff_summary.select_dtypes(exclude = _numerics)],axis=1)
+        cols_ordered = ["left_count","left_nulls","right_count","right_nulls","common_row_count","diff_val_count","left_total","right_total","total_diff","total_diff_pct","left_mean","right_mean"]
+        d["diff_summary"] = diff_summary_final[cols_ordered]
+
         return d
         
     def _compare_row_counts(self):
@@ -263,28 +273,24 @@ class DataComp(object):
         right_pks = self.right_data.index
         
         common_pks = left_pks[left_pks.isin(right_pks)]
-
         self.common_pks = common_pks
-        
-        self.diff_summary["CommonRowCount"] = '{:,}'.format(common_pks.shape[0])
 
-        ## For numeric columns except PK, want to calculate summary statistics before subsetting datasets on common PKs
-        for col in self.left_data.columns:
-            if self.left_data[col].dtype in [np.int32,np.int64,np.float32,np.float64] and col != "-PK":
-                left_sum = self.left_data[col].sum()
-                right_sum = self.right_data[col].sum()
-                self.diff_summary.loc[col,"LeftSums"] = '{:,}'.format(left_sum)
-                self.diff_summary.loc[col,"RightSums"] = '{:,}'.format(right_sum)
-                self.diff_summary.loc[col,"TotalDiff"] = '{:,}'.format(left_sum - right_sum)
-                if left_sum != 0:
-                    self.diff_summary.loc[col,"TotalPctDiff"] = '{:%}'.format((left_sum - right_sum)/left_sum)
-                self.diff_summary.loc[col,"LeftMeans"] = '{:,}'.format(self.left_data[col].mean())
-                self.diff_summary.loc[col,"RightMeans"] = '{:,}'.format(self.right_data[col].mean())
+        ## Want to calculate summary statistics before subsetting datasets on common PKs, note bool is considered numeric as well for database comparison
 
+           
+        summary_headers = ['left_count','left_total','left_mean','left_nulls','right_count','right_total','right_mean','right_nulls']
+
+        combined_summary = [list(_col_profile(self.left_data[col])) + \
+            list(_col_profile(self.right_data[col])) for col in common_cols]
         
-        ## As we have now summarized the numeric columns, we can convert all numerics to strings in order to remove numpy nan
+        self.diff_summary = pd.DataFrame(data = combined_summary , columns=summary_headers,index=common_cols)
+        self.diff_summary["total_diff"] = self.diff_summary["left_total"] - self.diff_summary["right_total"]
+        
+        self.diff_summary["total_diff_pct"] = [_div_zero_str(x,y) for x,y in zip(self.diff_summary["left_total"],self.diff_summary["total_diff"])]
+
+        self.diff_summary["common_row_count"] = common_pks.shape[0]
+
         ## As the numpy nan triggers spyder IDE issue 2991
-        
         self.left_data = self.left_data.applymap(self._convert_to_str)
         self.right_data = self.right_data.applymap(self._convert_to_str)
 
@@ -303,7 +309,7 @@ class DataComp(object):
         right_data_comp = self.right_data.loc[self.common_pks][self.common_cols]
 
         ## Return the position of the values which are not equal
-        diff_array = np.where(left_data_comp .values != right_data_comp.values)
+        diff_array = np.where(left_data_comp.values != right_data_comp.values)
 
         ## Count up the number of difference by column using positional index
         colsdiff = diff_array[1]
@@ -315,9 +321,7 @@ class DataComp(object):
         colsdiff_length = self.diff_summary.shape[0]
         colsdiff_counts = np.lib.pad(colsdiff_counts, (0,colsdiff_length-len(colsdiff_counts)), 'constant', constant_values=(0))
 
-
-        for i, diff_count in enumerate(colsdiff_counts):
-            self.diff_summary.iloc[i]["DiffValCount"] = '{:,}'.format(diff_count)
+        self.diff_summary["diff_val_count"] = ['{:,}'.format(x) for x in colsdiff_counts]
         
         if len(diff_array[0]) == 0:
             print("\nFor matched rows, all values match")
@@ -340,24 +344,24 @@ class DataComp(object):
 
     def _convert_to_str(self,obj):
         """To be used to convert all objects to strings and any numpy nan to blank string for ease of comparison"""
-
         ## Note 1: bool types in SQL are viewed as 1 or 0, so covert them here to int
         ## Note 2: Depending on RDBMS, numerics may be returned as int or float, 
             ## in such case covert all to float with 1 decimal places for comparison
-        if isinstance(obj,bool) or isinstance(obj,np.bool_):
-            return str(int(obj))
-        elif isinstance(obj,float):
-            return str(round(obj,1))
-        elif isinstance(obj,int):
-            return str(round(float(obj),1))
+        if pd.isnull(obj):
+            return 'null'
         else:
-            return str(obj)
+            try:
+                return str(round(float(obj),1))
+            except:
+                return str(obj)
+
+
     
     def _report_diff(self,x):
         """Returns difference from two sets with left and right values delimited by pipe"""
         return x[0] if x[0] == x[1] else '{} | {}'.format(*x)
     
-    def set_key(self,side="left",col = "-PK"):
+    def set_key(self,col,side="left"):
         """ Sets the primary key on both, left or right data set to another named column for comparison
     
         Parameters
@@ -390,11 +394,8 @@ class DataComp(object):
     def _index_data(self,df,col=None):
         """PK for comparison is left-most (position 0) by default unless specified (e.g. via the set_key function)"""
         if col is None:
-            df.insert(0,"-PK",df.iloc[:,0])
+            df.index = df.iloc[:,0]
         else:
-            df["-PK"] = df[col]
-        df = df.sort_values(by = ["-PK"])
-        df.index = df["-PK"]
-        return df
-
-        
+            df.index = df[col]
+        df = df.sort_index()
+        return df        
