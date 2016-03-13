@@ -5,18 +5,15 @@ set @EndDateInt = cast(convert(char(8),@EndDate,112) as int);
 
 SELECT  [FactEventKey]
       ,[OccurrenceDateKey]
-	  ,cast(dd.FULL_DATE as datetime) as FullDate
-      ,cast(NumMentions as float) as NumMentions
-<<<<<<< HEAD
+	  ,cast(dd.FULL_DATE as datetime2(0)) as FullDate
+      ,cast(NumMentions as int) as NumMentions
+	  	  ,SourceURL
+		  ,cast(fe.IsRootEvent as bit) as IsRootEvent
       ,case when FactEventKey between 471391288 and 471391300
-		then null else SourceURL end as SourceURL
-	,fe.IsRootEvent
-	,cast(NumMentions as int) as NumMentionsFloatWNulls
+		then null else 	
+		cast(NumMentions*1.1 as decimal(10,2)) end as NumMentionsFloatWNulls
 
 
-=======
-	  ,SourceURL
->>>>>>> 40e01b0382b4f66628c5831160f92463ac3bba82
   FROM [GDELT].[GDELT20].[FactEvent] as fe
 	inner join gdelt.gdelt20.DimGeo as action_dg
 		on fe.ActionGeoKey = action_dg.GeoKey
@@ -27,5 +24,4 @@ SELECT  [FactEventKey]
  and fe.Actor1Key >=7000
  and fe.Actor1Key < 8000
 
- 
  order by FactEventKey

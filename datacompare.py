@@ -137,6 +137,7 @@ class DataComp(object):
         else:
             sql_script = self._load_sql_script(path=script_path,datetofrom=self.datetofrom)
             data = self._populate_dataframe_from_sql(cnxn_string = cnxn_info[1],cnxn_name = cnxn_name, sql_script = sql_script)
+
         return data, sql_script
 
     def _get_cnxn_info(self,cnxn_name,expected_type):
@@ -229,6 +230,13 @@ class DataComp(object):
 
         assert self.right_data.index.duplicated().sum() == 0, "right PK is not unique, use set_key method on unique columns. \n Example: " + \
             str(self.right_data.index[self.right_data.index.duplicated()].values[0])
+
+        ## Also protect against duplicate columns, as potentially a mistake in aliasing formulas within the SQL
+        assert self.left_data.columns.duplicated().sum() == 0, "left column names are not unique, edit query or text file. \n Example: " + \
+            str(self.left_data.columns[self.left_data.columns.duplicated()].values[0])
+
+        assert self.right_data.columns.duplicated().sum() == 0, "right column names are not unique, edit query or text files. \n Example: " + \
+            str(self.right_data.columns[self.right_data.columns.duplicated()].values[0])
 
         ## Compare rows in two sets based on common key and report on differences
         self._compare_row_counts()
