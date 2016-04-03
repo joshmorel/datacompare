@@ -1,5 +1,6 @@
 import sys
-sys.path.append("C:/Users/Josh.Josh-PC/datacompare")
+import os
+sys.path.insert(0,os.path.join(os.environ.get("USERPROFILE"),'datacompare'))
 import datacompare as dc
 import imp
 imp.reload(dc)
@@ -8,6 +9,9 @@ import unittest
 import pandas as pd
 
 test_cnxn_path = "test_cnxn.ini"
+
+
+
 
 class TestMyFunctions(unittest.TestCase):
     def test_load_normal(self):
