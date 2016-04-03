@@ -24,6 +24,23 @@ def _num_to_str(num):
     """Convenience function for converting a non-percent numeric to a nicely formatted string"""
     return '{0:,.0f}'.format(num)
 
+def _convert_num_to_str(obj):
+    """Used to convert all numeric objects to strings for ease of comparison"""
+    ## Note 1: bool types in SQL are viewed as 1 or 0, so covert them here to int
+    ## Note 2: Depending on RDBMS, numerics may be returned as int or float, 
+        ## in such case covert all to float with 1 decimal places for comparison
+    if pd.isnull(obj):
+        return 'null'
+    else:
+        return str(round(float(obj),1))
+
+def _convert_df_nums(df):
+    """Converts all columns in numeric df to string"""
+    numeric_cols = [col for col in df.select_dtypes(include=_numerics)]
+    temp_df = df.copy()
+    for col in numeric_cols:
+        temp_df[col] = df[col].apply(_convert_num_to_str)
+    return temp_df            
 
 def _div_zero_str(numer,denom):
     """Convenience function for dividing by zero and formatting as a nice string"""
@@ -297,9 +314,9 @@ class DataComp(object):
 
         self.diff_summary["common_row_count"] = common_pks.shape[0]
 
-        ## As the numpy nan triggers spyder IDE issue 2991
-        self.left_data = self.left_data.applymap(self._convert_to_str)
-        self.right_data = self.right_data.applymap(self._convert_to_str)
+        ## Convert all numerics to string for ease of comparison and as means to address numpy nan triggers spyder IDE issue 2991
+        self.left_data = _convert_df_nums(self.left_data)
+        self.right_data = _convert_df_nums(self.right_data)
 
         self.left_not_right_data = self.left_data[~left_pks.isin(right_pks)]
         self.right_not_left_data = self.right_data[~right_pks.isin(left_pks)]
@@ -307,6 +324,7 @@ class DataComp(object):
         print("\nRows matched in both sets: ",str(common_pks.shape[0]),\
         "\n\nRows in left set not in right: ",str(self.left_not_right_data.shape[0]),\
         "\n\nRows in right set not in left: ",str(self.right_not_left_data.shape[0]))        
+
             
     def _compare_values(self):
         """ Compare the values of those rows commont to both sets"""
