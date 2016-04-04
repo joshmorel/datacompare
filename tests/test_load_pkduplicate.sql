@@ -1,7 +1,7 @@
 select 
 * from 
-GDELT.Common.DimFlag
+t1
 union all
 select 
 * from 
-GDELT.Common.DimFlag
+t1
