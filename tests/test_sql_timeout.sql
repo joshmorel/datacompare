@@ -1,1 +1,0 @@
-WAITFOR DELAY '00:00:01' SELECT top 1 [GlobalEventID] FROM [GDELT].[stg].[GDELT20DailyEvent] as de
