@@ -37,8 +37,8 @@ class TestMyFunctions(unittest.TestCase):
     def test_compare_diffrows(self):
     ## Differing number of rows in each
         print("test_compare_diffrows")
-        testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_compare_diffrow_left.sql",datetofrom=('2015-09-29','2015-09-30'))
-        testdc.add_right_data("GDELT","test_compare_diffrow_right.sql")
+        testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "sqlitedb",left_script_path = "test_compare_diffrow_left.sql",datetofrom=('2015-09-29','2015-09-30'))
+        testdc.add_right_data("sqlitedb","test_compare_diffrow_right.sql")
         testdc_dict = testdc.compare_data()
         self.assertTrue((testdc_dict["left_not_right_data"].shape[0] > 0) and (testdc_dict["right_not_left_data"].shape[0] > 0)\
             and (testdc_dict["diff_values"] is None),"Differing rows test failed" \
@@ -71,12 +71,10 @@ class TestMyFunctions(unittest.TestCase):
     def test_sql_intfloatequal(self):
     ## Test to confirm if int and float compared where values are equal, the result is passed
         print("test_sql_intfloatequal")
-        testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_compare_intvsfloat_same_left.sql",datetofrom=('2015-09-29','2015-09-30'))
-        testdc.add_right_data("GDELT","test_compare_intvsfloat_same_right.sql")
+        testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "sqlitedb",left_script_path = "test_compare_intvsfloat_same_left.sql",datetofrom=('2015-09-29','2015-09-30'))
+        testdc.add_right_data("sqlitedb","test_compare_intvsfloat_same_right.sql")
         testdc_dict = testdc.compare_data()
         self.assertTrue(testdc_dict["diff_values"] is None,"Same int float compare failed")
-
-
     ##Section 2: Assertion error tests
     def test_assert_norows(self):
     ## To confirm assertion error if empty result set returned
@@ -134,13 +132,12 @@ class TestMyFunctions(unittest.TestCase):
         print("test_load_txt_pipe")
         testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "txt_pipe",sep="|")
         self.assertEqual(testdc.left_data.shape[0],10,"Normal Test failed")
-
-
     def test_sql_uniqucols(self):
+    ## To confirm assertion error if there are the column names are not unique
         print("test_sql_uniqucols")
         with self.assertRaises(AssertionError):
-            testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "GDELT",left_script_path = "test_unique_columns.sql",datetofrom=('2015-09-29','2015-09-30'))
-            testdc.add_right_data("GDELT","test_unique_columns.sql")
+            testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "sqlitedb",left_script_path = "test_unique_columns.sql",datetofrom=('2015-09-29','2015-09-30'))
+            testdc.add_right_data("sqlitedb","test_unique_columns.sql")
             testdc.compare_data()
     
 if __name__ == '__main__':
