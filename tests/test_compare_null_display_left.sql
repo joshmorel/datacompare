@@ -1,0 +1,4 @@
+SELECT 
+*
+FROM t1
+WHERE mypk IN (2,12,13)
