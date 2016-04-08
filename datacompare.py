@@ -368,21 +368,7 @@ class DataComp(object):
             diff_values = pd.concat([diff_values,diff_rows],axis=1)
             self.diff_values = diff_values
 
-    def _convert_to_str(self,obj):
-        """To be used to convert all objects to strings and any numpy nan to blank string for ease of comparison"""
-        ## Note 1: bool types in SQL are viewed as 1 or 0, so covert them here to int
-        ## Note 2: Depending on RDBMS, numerics may be returned as int or float, 
-            ## in such case covert all to float with 1 decimal places for comparison
-        if pd.isnull(obj):
-            return 'null'
-        else:
-            try:
-                return str(round(float(obj),1))
-            except:
-                return str(obj)
 
-
-    
     def _report_diff(self,x):
         """Returns difference from two sets with left and right values delimited by pipe"""
         return x[0] if x[0] == x[1] else '{} | {}'.format(*x)

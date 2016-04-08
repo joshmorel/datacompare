@@ -19,24 +19,20 @@ class TestMyFunctions(unittest.TestCase):
     ##Section 1: Loading & comparison tests 
     def test_load_normal(self):
     ## Simply loading data
-        print("test_load_normal")
-        testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "sqlitedb",left_script_path = "test_normal.sql",datetofrom=('2015-09-29','2015-09-30'))
-        self.assertEqual(testdc.left_data.shape[0],10,"Normal Test failed")
+        testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "sqlitedb",left_script_path = "test_normal.sql",datetofrom=('2014-09-29','2017-09-30'))
+        self.assertTrue(testdc.left_data.shape[0]>10,"Normal Test failed")
     def test_load_from_utf8_bom(self):
     ## Using read for a file that may or may not have a UTF-8 BOM can cause issues, so need to test both file types
-        print("test_load_from_utf8_bom")
         testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "sqlitedb",left_script_path = "test_load_utf8.sql",datetofrom=('2015-09-29','2015-09-30'))
         self.assertTrue(testdc.left_data.shape[0]>0)
     def test_equal_sets(self):
     ## Same exact result sets
-        print("test_compare_equal")
-        testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "sqlitedb",left_script_path = "test_normal.sql",datetofrom=('2015-09-29','2015-09-30'))
+        testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "sqlitedb",left_script_path = "test_normal.sql",datetofrom=('2014-09-29','2017-09-30'))
         testdc.add_right_data("sqlitedb","test_normal.sql")
         testdc_dict = testdc.compare_data()
         self.assertTrue(testdc_dict["diff_summary"]["diff_val_count"].max() == '0',"Same result set comparison failed")
     def test_compare_diffrows(self):
     ## Differing number of rows in each
-        print("test_compare_diffrows")
         testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "sqlitedb",left_script_path = "test_compare_diffrow_left.sql",datetofrom=('2015-09-29','2015-09-30'))
         testdc.add_right_data("sqlitedb","test_compare_diffrow_right.sql")
         testdc_dict = testdc.compare_data()
@@ -45,7 +41,6 @@ class TestMyFunctions(unittest.TestCase):
             and (max(testdc_dict["diff_summary"]["right_count"]) > max(testdc_dict["diff_summary"]["common_row_count"])))
     def test_diffvals(self):
     ## Same rows, but different values in some rows
-        print("test_compare_rowsame_diffval")
         testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "sqlitedb",left_script_path = "test_compare_diffval_left.sql",datetofrom=('2015-09-29','2015-09-30'))
         testdc.add_right_data("sqlitedb","test_compare_diffval_right.sql")
         testdc_dict = testdc.compare_data()
@@ -53,12 +48,19 @@ class TestMyFunctions(unittest.TestCase):
             and (testdc_dict["diff_values"].shape[0] > 1) and (sum(testdc_dict["diff_summary"]["diff_val_count"].apply(int)) > 0),"Differing values failed")
     def test_diffnull(self):
     ## Same rows, but different values due to nulls in some rows
-        print("test_compare_rowsame_diffnull")
         testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "sqlitedb",left_script_path = "test_compare_diffnull_left.sql",datetofrom=('2015-05-29','2015-09-30'))
         testdc.add_right_data("sqlitedb","test_compare_diffnull_right.sql")
         testdc_dict = testdc.compare_data()
         self.assertTrue((testdc_dict["left_not_right_data"].shape[0] == 0) and (testdc_dict["right_not_left_data"].shape[0] == 0)\
             and (testdc_dict["diff_values"].shape[0] > 5),"Differing values with nulls failed")
+    def test_diffnull_display(self):
+    ## Don't want to NaT values to be compared as different, so running index lambda function to find bar should return value error
+        with self.assertRaises(ValueError):        
+            testdc = dc.DataComp(cnxn_path = test_cnxn_path,left_cnxn_name = "sqlitedb",left_script_path = "test_compare_null_display_left.sql",datetofrom=('2015-05-29','2015-09-30'))
+            testdc.add_right_data("sqlitedb","test_compare_null_display_right.sql")
+            testdc_dict = testdc.compare_data()
+            testdc_dict["diff_values"]["adate"].apply(lambda x: x.index('|'))
+
     def test_setkey(self):
     ## Test setting of key on both sides
         print("test_compare_setkey")
