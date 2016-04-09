@@ -36,7 +36,7 @@ def _div_zero_str(numer,denom):
     elif denom == 0:
         return '0%'
     else:
-        return '{0:.2f}%'.format(numer/denom*100)
+        return '{0:.2%}'.format(numer/denom)
 
 
 def _report_diff(x):
