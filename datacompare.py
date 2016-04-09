@@ -7,7 +7,10 @@ import numpy as np
 import codecs
 import configparser as cp
 
+
 _numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64', 'bool']
+
+
 def _col_profile(col):
     """Convenience function for profiling a column"""
     count = len(col)
@@ -19,28 +22,12 @@ def _col_profile(col):
         mean = None
     nulls = len(col) - col.count()
     return count, total, mean, nulls
+
     
 def _num_to_str(num): 
     """Convenience function for converting a non-percent numeric to a nicely formatted string"""
-    return '{0:,.0f}'.format(num)
+    return '{0:,.0f}'.format(num)     
 
-def _convert_num_to_str(obj):
-    """Used to convert all numeric objects to strings for ease of comparison"""
-    ## Note 1: bool types in SQL are viewed as 1 or 0, so covert them here to int
-    ## Note 2: Depending on RDBMS, numerics may be returned as int or float, 
-        ## in such case covert all to float with 1 decimal places for comparison
-    if pd.isnull(obj):
-        return 'null'
-    else:
-        return str(round(float(obj),1))
-
-def _convert_df_nums(df):
-    """Converts all columns in numeric df to string"""
-    numeric_cols = [col for col in df.select_dtypes(include=_numerics)]
-    temp_df = df.copy()
-    for col in numeric_cols:
-        temp_df[col] = df[col].apply(_convert_num_to_str)
-    return temp_df            
 
 def _div_zero_str(numer,denom):
     """Convenience function for dividing by zero and formatting as a nice string"""
@@ -50,6 +37,12 @@ def _div_zero_str(numer,denom):
         return '0%'
     else:
         return '{0:.2f}%'.format(numer/denom*100)
+
+
+def _report_diff(x):
+    """Returns difference from values in a 2-element list with left and right values delimited by pipe"""
+    return x[0] if x[0] == x[1] else '{} | {}'.format(*x)
+
 
 def get_file_paths(path):
     """ Creates dictionary of paths to files in a specific directory where keys are the file name (before first period).
@@ -77,8 +70,8 @@ def get_file_paths(path):
         file_paths[file_name[0]] = path + file
     return file_paths
 
-## DataComp class
 
+## DataComp class
 class DataComp(object):
     """ Container for comparison of two of data-sets a left and right, from SQL, txt or DataFrame.
     On initialization loads left data from either sql or txt. To complete comparison use add_right_data and compare_data methods.
@@ -112,6 +105,7 @@ class DataComp(object):
         self.right_sql = None
         self.right_data = None
 
+
     def add_right_data(self,right_cnxn_name,right_script_path = None, DataFrame = None,**kwargs):
         """Add right data for comparison, unlike left data, right can be from DataFrame.
         For DataFrame set right_cnxn_name = None and set DataFrame to a named DataFrame object in scope
@@ -138,6 +132,7 @@ class DataComp(object):
         else:
             self.right_data, self.right_sql = self._get_data(cnxn_name = self.right_cnxn_name, script_path = self.right_script_path,**kwargs)
 
+
     def _get_data(self,cnxn_name,script_path,**kwargs):
         """Gets data from either text source or SQL source based on what is stored in ini file for specified name
         Also returns the actual sql for inspection, troubleshooting
@@ -157,6 +152,7 @@ class DataComp(object):
 
         return data, sql_script
 
+
     def _get_cnxn_info(self,cnxn_name,expected_type):
         """Gets sql connection string or txt path from ini file"""
         parser = cp.ConfigParser()
@@ -167,6 +163,7 @@ class DataComp(object):
             ".\nExpected type is txt if script_path is None, otherwise sql"
         cnxn_string =  parser.get(cnxn_name,'cnxn_string')
         return (cnxn_type,cnxn_string)
+
 
     def _load_sql_script(self,path,datetofrom=("2015-04-01","2015-04-02")):
         '''Load SQL and changes all date occurrence pairs to to and from in datetofrom parameter'''
@@ -191,6 +188,7 @@ class DataComp(object):
             sql_script = sql_script[:m.start()] + datetofrom[i%2] + sql_script[m.end():]    
         return sql_script        
 
+
     def _populate_dataframe_from_sql(self,cnxn_string,cnxn_name,sql_script):
         '''With a valid SQL script and connection, loads SQL data into dataframe'''
         with pyodbc.connect(cnxn_string) as cnxn:
@@ -205,12 +203,14 @@ class DataComp(object):
             except TypeError:
                 raise AssertionError("SQL script loaded but could not return a dataframe, check to make sure a result-set is actually returned")
     
+
     def _populate_dataframe_from_txt(self,txt_path,**kwargs):
         """Creates dataframe from txt file, **kwargs for read_table keyword arguments such as non-tab sep"""
         df = pd.read_table(txt_path,**kwargs)
         df = self._index_data(df)
         return df    
            
+
     def compare_data(self):
         """ Completely compare the loaded left and right data sets.
         Displaying both testing message and returning six item dictionary for exploration including:
@@ -274,6 +274,7 @@ class DataComp(object):
 
         return d
         
+
     def _compare_row_counts(self):
         """ Find rows not common to both sets, report on them, and store these findings"""
 
@@ -284,8 +285,6 @@ class DataComp(object):
 
         left_cols_not_right = left_cols[~left_cols.isin(common_cols)]
         right_cols_not_left = right_cols[~right_cols.isin(common_cols)]
-
-        common_cols = common_cols.sort_values()
 
         print("\nData Comparison Results:\nColumns common to both data sets compared for equality:\n\t",common_cols.values,\
             "\n\nColumns in left but not in right:\n\t",left_cols_not_right.values,\
@@ -314,9 +313,9 @@ class DataComp(object):
 
         self.diff_summary["common_row_count"] = common_pks.shape[0]
 
-        ## Convert all numerics to string for ease of comparison and as means to address numpy nan triggers spyder IDE issue 2991
-        self.left_data = _convert_df_nums(self.left_data)
-        self.right_data = _convert_df_nums(self.right_data)
+        ## Convert all to string for ease of comparison and as means to address numpy nan triggers spyder IDE issue 2991
+        self.left_data = self.left_data.applymap(lambda x: str(x))
+        self.right_data = self.right_data.applymap(lambda x: str(x))
 
         self.left_not_right_data = self.left_data[~left_pks.isin(right_pks)]
         self.right_not_left_data = self.right_data[~right_pks.isin(left_pks)]
@@ -359,20 +358,18 @@ class DataComp(object):
             ## Pass only columns and rows which have at least one difference
             diff_panel = pd.Panel({"left":left_data_comp.iloc[rows_with_diff,cols_with_diff],\
                 "right":right_data_comp.iloc[rows_with_diff,cols_with_diff]})
-            diff_values = diff_panel.apply(self._report_diff, axis=0)
+            diff_values = diff_panel.apply(_report_diff, axis=0)
             print("\nFor matched rows,",str(len(rows_with_diff)),"of the rows have at least one different value among",str(len(cols_with_diff)),"columns flagged with differences")
             
             ## What to see all columns for contextual info for rows with at least some differences, but columns with differences at front
             diff_rows = left_data_comp.iloc[rows_with_diff,:]
             diff_rows = diff_rows[diff_rows.columns.delete(cols_with_diff)]
+            ## Include delim columns to easily distinguish columns with any differences 
+            diff_values["cols_with_diffs_on_left"] = "|"
             diff_values = pd.concat([diff_values,diff_rows],axis=1)
             self.diff_values = diff_values
 
-
-    def _report_diff(self,x):
-        """Returns difference from two sets with left and right values delimited by pipe"""
-        return x[0] if x[0] == x[1] else '{} | {}'.format(*x)
-    
+   
     def set_key(self,col,side="left"):
         """ Sets the primary key on both, left or right data set to another named column for comparison
     
@@ -402,6 +399,7 @@ class DataComp(object):
             self.right_data = self._index_data(df = self.right_data,col = col)
         else:
             raise AssertionError('side must be both, left or right')
+
             
     def _index_data(self,df,col=None):
         """PK for comparison is left-most (position 0) by default unless specified (e.g. via the set_key function)"""
