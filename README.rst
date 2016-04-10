@@ -1,5 +1,5 @@
 datacompare
----------------
+------------------
 
 Background
 ---------------
@@ -18,6 +18,10 @@ Features
 Caution
 ---------------
 This is very much small scale, organizational use. However, if anyone stumbles upon finds this useful please fork it but it's not in an installable package at this point.
+
+License
+---------------
+MIT
 
 Usage
 ---------------
@@ -73,3 +77,13 @@ You can also look at the diff_values, which shows the specific value differences
    :alt: datacompare diff_values
    
 Rows in one set and not in the other can also be viewed in left_not_right_data and right_not_left_data
+
+.. figure:: https://raw.githubusercontent.com/joshmorel/datacompare/master/docs/example/datacompare_right_not_left_data.png
+   :alt: datacompare right_not_left_data
+   :width: 50%
+   
+Future Direction
+------------------
+    - Make datacompare an installable package 
+    - Automated ETL functionality, although `etlTest <https://github.com/OpenDataAlex/etlTest/>`_ seems like it might fulfill this need
+    - Data quality tests with definable rules to provide flagging of data quality issues besides just equality between sets (e.g. no missing values, outliers flags, consistent results over date range)
