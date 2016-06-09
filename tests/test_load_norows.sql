@@ -1,1 +1,0 @@
-SELECT * FROM t1 WHERE t1.adate > '2011-01-01' AND t1.adate < '2016-01-01'

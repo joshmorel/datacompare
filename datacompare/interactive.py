@@ -1,18 +1,13 @@
 # The interactive portion of the program
 
 from datacompare.comparedataframe import CompareDataFrame
+from datacompare.membership import compare_membership
 import pandas as pd
 
 
 def main():
     print_header()
-    # dateset_one = get_dataset_from_user(1)
-    # dateset_two = get_dataset_from_user(2)
-
-
     compare_loop()
-    # print('Dataset one is {}, and dataset two is located {}.'.format(dateset_one, dateset_two))
-
 
 def print_header():
     print('-------------------------')
@@ -35,23 +30,43 @@ def set_primary_key(comparedataframe, key):
     pass
 
 
+# def show_member_in_left_not_in_right(left, right):
+#     members_in_left_not_in_right = compare_membership(left, right)
+
+
+
+
+
 def compare_loop():
-    simpledf = pd.DataFrame({"Nums": [3, 1, 0], "Chars": ["a", "b", "c"]}, columns = ['Nums','Chars'])
-    print('The simple dataframe index is {}'.format(simpledf.index))
-    print('The simple dataframe is {}'.format(simpledf))
-    compare_frame = create_compare_frame(simpledf)
-    print('The compare dataframe primary key is {}'.format(compare_frame.primary_key))
-    print('The compare dataframe index is {}'.format(compare_frame.index))
-    print('The compare dataframe is {}'.format(compare_frame))
+    # simpledf = pd.DataFrame({"Nums": [3, 1, 0], "Chars": ["a", "b", "c"]}, columns = ['Nums','Chars'])
+    # print('The simple dataframe index is {}'.format(simpledf.index))
+    # print('The simple dataframe is {}'.format(simpledf))
+    # compare_frame = create_compare_frame(simpledf)
+    # print('The compare dataframe primary key is {}'.format(compare_frame.primary_key))
+    # print('The compare dataframe index is {}'.format(compare_frame.index))
+    # print('The compare dataframe is {}'.format(compare_frame))
+
+    result = create_compare_frame(
+        pd.DataFrame({"Nums": [1, 2, 3], "Chars": ["a", "b", "c"]}, columns=['Nums', 'Chars']))
+    expected = create_compare_frame(
+        pd.DataFrame({"Nums": [1, 2, 3, 4], "Chars": ["a", "b", "c", "d"]}, columns=['Nums', 'Chars']))
+
+
 
     while True:
 
-        cmd = input('Do you [s]et primary key, e[x]it? ')
+        cmd = input('Do you [s]et primary key, check [m]embership, e[x]it? ')
         if cmd == 's':
             provided_key = input('Tell me the key: ')
 
-            set_primary_key(comparedataframe=compare_frame, key=provided_key)
-            print('The new key is {}'.format(compare_frame.primary_key))
+            set_primary_key(comparedataframe=result, key=provided_key)
+            set_primary_key(comparedataframe=expected, key=provided_key)
+
+            print('The new key is {}'.format(result.primary_key))
+        elif cmd == 'm':
+            while True:
+                print('Found member in result, not in expected with primary key {}.'.format(
+                    next(compare_membership(result, expected))))
         else:
             print('Goodbye!')
             break

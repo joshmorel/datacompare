@@ -27,6 +27,8 @@ class CompareDataFrame(DataFrame):
         self.primary_key = column_as_primary_key
         self._index_on_primary_key()
 
+
+
     #
     # def _copy_attrs(self, df):
     #     for attr in self._attributes_.split(","):

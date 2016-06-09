@@ -1,4 +1,0 @@
-SELECT 
-*
-FROM t2
-WHERE mypk IN (2,12,13)

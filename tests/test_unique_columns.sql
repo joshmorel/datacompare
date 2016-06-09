@@ -1,1 +1,0 @@
-SELECT mypk, sometext, sometext FROM t1
