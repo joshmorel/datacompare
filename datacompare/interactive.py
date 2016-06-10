@@ -1,13 +1,18 @@
 # The interactive portion of the program
 
-from datacompare.comparedataframe import CompareDataFrame
-from datacompare.membership import compare_membership
 import pandas as pd
+from datacompare.comparedataframe import CompareDataFrame
+
+result = CompareDataFrame(pd.DataFrame({"Nums": [0,1, 2, 3], "Chars": ["zoo","a", "b", "c"]}, columns=['Nums', 'Chars']))
+expected = CompareDataFrame(
+    pd.DataFrame({"Nums": [1, 2, 3, 4, 5], "Chars": ["a", "b", "c", "d", "e"]}, columns=['Nums', 'Chars']))
+
 
 
 def main():
     print_header()
     compare_loop()
+
 
 def print_header():
     print('-------------------------')
