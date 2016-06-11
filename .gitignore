@@ -7,3 +7,4 @@ working/
 build
 
 .idea
+/datacompare.egg-info/
