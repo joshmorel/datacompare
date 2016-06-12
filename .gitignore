@@ -11,3 +11,5 @@ build
 /datacompare.egg-info/
 
 *myplay.py
+
+datacompare/interactive.py
