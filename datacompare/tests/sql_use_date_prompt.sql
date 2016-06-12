@@ -1,0 +1,2 @@
+SELECT * FROM t1
+WHERE SomeDate BETWEEN ? AND ?

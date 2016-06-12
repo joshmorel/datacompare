@@ -1,0 +1,16 @@
+date_product,salesdate,product,sales_quantity,sales_amount
+2015-04-01 - Bicycle,2015-04-01,Bicycle,10,2408.0
+2015-04-01 - Helmet,2015-04-01,Helmet,10,270.0
+2015-04-01 - Jersey,2015-04-01,Jersey,8,419.2
+2015-04-02 - Bicycle,2015-04-02,Bicycle,5,1252.05
+2015-04-02 - Helmet,2015-04-02,Helmet,1,27.0
+2015-04-02 - Jersey,2015-04-02,Jersey,4,209.6
+2015-04-03 - Bicycle,2015-04-03,Bicycle,2,500.82
+2015-04-03 - Helmet,2015-04-03,Helmet,5,135.0
+2015-04-03 - Jersey,2015-04-03,Jersey,3,157.2
+2015-04-04 - Bicycle,2015-04-04,Bicycle,4,1001.64
+2015-04-04 - Helmet,2015-04-04,Helmet,8,216.0
+2015-04-04 - Jersey,2015-04-04,Jersey,2,104.8
+2015-04-05 - Bicycle,2015-04-05,Bicycle,7,1752.87
+2015-04-05 - Helmet,2015-04-05,Helmet,4,108.0
+2015-04-05 - Jersey,2015-04-05,Jersey,1,52.4
