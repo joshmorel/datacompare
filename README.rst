@@ -46,9 +46,7 @@ Usage
     \n\nRows in right not in left\n{}\
     \n\nValue differences\n {}'.format(in_left_not_right,in_right_not_left,value_differences))
 
-Will show:
-
-.. code-block:: python
+Will show::
 
     Rows in left not in right
                                  date_product  sales_quantity  sales_amount
