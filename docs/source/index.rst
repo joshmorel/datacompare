@@ -1,8 +1,25 @@
-Welcome to DataCompare's documentation!
+Welcome to datacompare's documentation!
 =======================================
 
 The purpose of this application is to provide a means for comparing two data sets in a manner
 that is both interactive and incredibly streamlined in a way I like. If this helps anyone else, that is awesome!::
+This documentation requires work:
+                 _ _
+               ."   ".
+               |  _ (
+               ).' -(
+                )  _/
+              .'_`(
+             / ( ,/;
+            /   \ ) \\.
+           /'-./ \ '.\\)
+           \   \  '---;\
+           |`\  \      \\
+          / / \  \      \\
+        _/ /   / /      _\\/
+       ( \/   /_/       \   |
+        \_)  (___)       '._/
+
 
 	>>>print("Hello Python 3")
 	Hello Python 3

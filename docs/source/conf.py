@@ -42,7 +42,7 @@ templates_path = ['ntemplates']
 # source_suffix = ['.rst', '.md']
 source_suffix = '.rst'
 
-# The encoding of source files.
+# The encoding of source assets.
 #source_encoding = 'utf-8-sig'
 
 # The master toctree document.
@@ -75,8 +75,8 @@ language = None
 # Else, today_fmt is used as the format for a strftime call.
 #today_fmt = '%B %d, %Y'
 
-# List of patterns, relative to source directory, that match files and
-# directories to ignore when looking for source files.
+# List of patterns, relative to source directory, that match assets and
+# directories to ignore when looking for source assets.
 exclude_patterns = []
 
 # The reST default role (used for this markup: `text`) to use for all
@@ -137,13 +137,13 @@ html_theme = 'alabaster'
 # pixels large.
 #html_favicon = None
 
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
+# Add any paths that contain custom static assets (such as style sheets) here,
+# relative to this directory. They are copied after the builtin static assets,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['nstatic']
 
-# Add any extra paths that contain custom files (such as robots.txt or
-# .htaccess) here, relative to this directory. These files are copied
+# Add any extra paths that contain custom assets (such as robots.txt or
+# .htaccess) here, relative to this directory. These assets are copied
 # directly to the root of the documentation.
 #html_extra_path = []
 
@@ -185,7 +185,7 @@ html_static_path = ['nstatic']
 # base URL from which the finished HTML is served.
 #html_use_opensearch = ''
 
-# This is the file name suffix for HTML files (e.g. ".xhtml").
+# This is the file name suffix for HTML assets (e.g. ".xhtml").
 #html_file_suffix = None
 
 # Language to be used for generating the HTML full-text search index.
@@ -221,7 +221,7 @@ latex_elements = {
 #'figure_align': 'htbp',
 }
 
-# Grouping the document tree into LaTeX files. List of tuples
+# Grouping the document tree into LaTeX assets. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
@@ -265,7 +265,7 @@ man_pages = [
 
 # -- Options for Texinfo output -------------------------------------------
 
-# Grouping the document tree into Texinfo files. List of tuples
+# Grouping the document tree into Texinfo assets. List of tuples
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [

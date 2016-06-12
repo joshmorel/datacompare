@@ -2,9 +2,12 @@
 __pycache__
 working.py
 working/
+.cache
 
 #docs
 build
 
 .idea
 /datacompare.egg-info/
+
+*myplay.py

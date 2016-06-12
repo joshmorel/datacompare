@@ -1,19 +1,47 @@
 import os
 import configparser as cp
+import pandas as pd
 
 
-def compare_value_pair(value_pair):
-    """Returns difference from values in a 2-element list with left and right values delimited by pipe"""
-    return str(value_pair[0]) if value_pair[0] == value_pair[1] else '{} | {}'.format(*value_pair)
+def check_equality(x, y):
+    if x == y or (x in ('nan','None','NaT') and y in ('nan','None','NaT')):
+        return True
+    else:
+        return False
 
 
-def get_sql_texts(path):
+def compare_value_pair(x, y):
+    return (0, x) if check_equality(x, y) else (1, '{} | {}'.format(x, y))
+
+
+def clean_series(s, precision=0):
+    # Booleans may be numeric or boolean depending on RDBMS column definitions so treat as numeric
+    numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64', 'bool']
+    # ETL testing should treat two Nulls as equivalent but Numpy does not, so need to convert to str
+    if s.dtype in numerics:
+        rounded_string = s.round(precision).astype(str)
+    else:
+        rounded_string = s.astype(str)
+    return rounded_string
+
+
+def compare_column_values(left, right, precision=0):
+    clean_left = clean_series(left, precision=precision)
+    clean_right = clean_series(right, precision=precision)
+
+    column_dump = pd.DataFrame([compare_value_pair(x, y) for (x, y) in zip(clean_left, clean_right)],
+                               columns=['is_different', left.name], index=left.index)
+    return column_dump
+
+
+def get_sql_texts(path='.'):
     """ Creates dictionary of SQL texts from specified directory.
     Paths can then be passed to CompareDataFrame object creation sqls["left"]
 
     Parameters
     ----------
-    path : Directory path where scripts are stored
+    path : str, default '.'
+        Directory with SQL scripts
 
     Returns
     -------
@@ -30,7 +58,7 @@ def get_sql_texts(path):
     for file in file_list:
         if file.split('.')[-1] == 'sql':
             file_name = file.split('.')[0]
-            with open(file,encoding='utf-8') as fin:
+            with open(os.path.join(path, file), encoding='utf-8') as fin:
                 sql_texts[file_name] = fin.read()
     return sql_texts
 
