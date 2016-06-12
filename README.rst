@@ -34,19 +34,21 @@ Usage
     import datacompare as dc
     sql_texts = dc.get_sql_texts()
     connection_string = dc.get_connection_info('connection_file.ini', 'salesdb')
+
     left = dc.CompareDataFrame.from_sql(sql_texts['example_sales_new'],
                                     connection_string,params=['2015-04-01', '2016-04-02'])
     right = dc.CompareDataFrame.from_sql(sql_texts['example_sales_old'],
                                      connection_string,params=['2015-04-01', '2016-04-02'])
-    in_left_not_right, in_right_not_left = left.get_member_difference(right, limit=2, to_file=False)
+
     value_differences = left.get_value_difference(right, to_file=False, limit=2, value_precision=2)
+
     print('Rows in left not in right\n {}\
     \n\nRows in right not in left\n{}\
     \n\nValue differences\n {}'.format(in_left_not_right,in_right_not_left,value_differences))
 
+Will show:
 
-Output
----------------
+.. code-block:: python
 
     Rows in left not in right
                                  date_product  sales_quantity  sales_amount
@@ -64,9 +66,6 @@ Output
     date_product
     2015-04-01 - Bicycle                 1  2504.1 | 2408.0             10.0
     2015-04-02 - Helmet                  2       nan | 27.0        nan | 1.0
-
-
-
 
 Future Direction
 ------------------
