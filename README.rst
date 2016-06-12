@@ -40,6 +40,7 @@ Usage
     right = dc.CompareDataFrame.from_sql(sql_texts['example_sales_old'],
                                      connection_string,params=['2015-04-01', '2016-04-02'])
 
+    in_left_not_right, in_right_not_left = left.get_member_difference(right, to_file=False, limit=2)
     value_differences = left.get_value_difference(right, to_file=False, limit=2, value_precision=2)
 
     print('Rows in left not in right\n {}\
