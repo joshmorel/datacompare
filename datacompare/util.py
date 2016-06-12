@@ -15,11 +15,11 @@ def compare_value_pair(x, y):
 
 
 def clean_series(s, precision=0):
-    # Booleans may be numeric or boolean depending on RDBMS column definitions so treat as numeric
+    # Convert bools, ints, floats to floats then round as different sources may have different type but same meaning
     numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64', 'bool']
     # ETL testing should treat two Nulls as equivalent but Numpy does not, so need to convert to str
     if s.dtype in numerics:
-        rounded_string = s.round(precision).astype(str)
+        rounded_string = s.astype(float).round(precision).astype(str)
     else:
         rounded_string = s.astype(str)
     return rounded_string

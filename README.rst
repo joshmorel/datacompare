@@ -40,31 +40,31 @@ Usage
                                      connection_string,params=['2015-04-01', '2016-04-02'])
     in_left_not_right, in_right_not_left = left.get_member_difference(right, limit=2, to_file=False)
     value_differences = left.get_value_difference(right, to_file=False, limit=2, value_precision=2)
-    print('Rows in left not in right\n\n {}\
-    \n\nRows in right not in left\n\n{}\
-    \n\nValue differences\n\n {}'.format(in_left_not_right,in_right_not_left,value_differences))
+    print('Rows in left not in right\n {}\
+    \n\nRows in right not in left\n{}\
+    \n\nValue differences\n {}'.format(in_left_not_right,in_right_not_left,value_differences))
 
 
-Would result in the following:
+Output
+---------------
 
-.. code-block:: python
+    Rows in left not in right
                                  date_product  sales_quantity  sales_amount
     date_product
     2015-05-05 - Helmet  2015-05-05 - Helmet             4.0           1.0
 
     Rows in right not in left
-
                                   date_product  sales_quantity  sales_amount
     date_product
     2015-04-04 - Bicycle  2015-04-04 - Bicycle               4       1001.64
     2015-04-04 - Helmet    2015-04-04 - Helmet               8        216.00
 
     Value differences
-
-                           values_different sales_quantity_12   sales_amount_2
+                           values_different   sales_amount_2 sales_quantity_1
     date_product
-    2015-04-01 - Bicycle                 2         10.0 | 10  2504.1 | 2408.0
-    2015-04-01 - Helmet                  1         10.0 | 10            270.0
+    2015-04-01 - Bicycle                 1  2504.1 | 2408.0             10.0
+    2015-04-02 - Helmet                  2       nan | 27.0        nan | 1.0
+
 
 
 

@@ -17,13 +17,14 @@ def sqlite_connection(request):
                 "NumNulls DECIMAL(10,2), "
                 "DateNulls DATETIME , "
                 "DateFirstNull DATETIME, "
-                "SomeDateTime DATETIME)")
-            sql_cursor.execute("INSERT INTO t1 VALUES (?,?,?,?,?,?,?,?)", 1, 'left', 'one', '2014-04-01', None,
-                               '2014-04-01', None, '2014-04-01 12:34')
-            sql_cursor.execute("INSERT INTO t1 VALUES (?,?,?,?,?,?,?,?)", 2, 'b', 'two', '2014-04-02', 3.3,
-                               '2014-04-02', '2014-04-01', '2014-04-01 12:34')
-            sql_cursor.execute("INSERT INTO t1 VALUES (?,?,?,?,?,?,?,?)", 3, 'c', 'three', '2015-04-02', 4.7, None,
-                               '2014-04-02', '2014-05-01')
+                "SomeDateTime DATETIME,"
+                "SomeInt INT)")
+            sql_cursor.execute("INSERT INTO t1 VALUES (?,?,?,?,?,?,?,?,?)", 1, 'left', 'one', '2014-04-01', None,
+                               '2014-04-01', None, '2014-04-01 12:34',1)
+            sql_cursor.execute("INSERT INTO t1 VALUES (?,?,?,?,?,?,?,?,?)", 2, 'b', 'two', '2014-04-02', 3.3,
+                               '2014-04-02', '2014-04-01', '2014-04-01 12:34',2)
+            sql_cursor.execute("INSERT INTO t1 VALUES (?,?,?,?,?,?,?,?,?)", 3, 'c', 'three', '2015-04-02', 4.7, None,
+                               '2014-04-02', '2014-05-01',3)
     finally:
         sql_connection.close()
 

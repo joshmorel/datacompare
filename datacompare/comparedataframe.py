@@ -146,7 +146,7 @@ class CompareDataFrame(pd.DataFrame):
         """
 
         shared_primary_keys = self.index[self.index.isin(right.index)]
-        shared_columns = self.columns[right.columns.isin(right.columns)]
+        shared_columns = self.columns[self.columns.isin(right.columns)]
         assert len(shared_columns) >= 2, "Require at least one common column in data sets beside primary key"
 
         left_data_to_compare = self.loc[shared_primary_keys][shared_columns]

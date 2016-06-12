@@ -1,8 +1,7 @@
-import datacompare.comparedataframe as cdf
+import datacompare as dc
 import pandas as pd
 import numpy as np
 import os
-import datacompare.util as dc_util
 
 tests_folder = os.path.dirname(__file__)
 os.chdir(tests_folder)
@@ -10,10 +9,10 @@ os.chdir(tests_folder)
 
 def test_dump_member_difference(text_files):
     # ensure all functionality works as expected when primary key is not first in compared sets
-    result = cdf.CompareDataFrame(
+    result = dc.CompareDataFrame(
         {"Chars": ["z", "left", "b", "c"], "Extra": ["zero", "one", "two", "three"], "Nums": [0, 1, 2, 3]},
         columns=['Chars', 'Extra', 'Nums'], primary_key="Nums")
-    expected = cdf.CompareDataFrame(
+    expected = dc.CompareDataFrame(
         {"Chars": ["right", "b", "c", "d"], "Extra": ["one", "two", "three", "four"], "Nums": [1, 2, 3, 4]},
         columns=['Chars', 'Extra', 'Nums'], primary_key="Nums")
 
@@ -27,10 +26,10 @@ def test_dump_member_difference(text_files):
 
 
 def test_dump_value_difference(text_files):
-    result = cdf.CompareDataFrame(
+    result = dc.CompareDataFrame(
         {"Nums": [0, 1, 2, 3], "Chars": ["z", "left", "b", "c"], "Extra": ["zero", "one", "two", "three"]},
         columns=['Nums', 'Chars', 'Extra'])
-    expected = cdf.CompareDataFrame(
+    expected = dc.CompareDataFrame(
         {"Nums": [1, 2, 3, 4], "Chars": ["right", "b", "c", "d"], "Extra": ["one", "two", "three", "four"]},
         columns=['Nums', 'Chars', 'Extra'])
 
@@ -43,14 +42,14 @@ def test_dump_value_difference(text_files):
 
 
 def test_sql_dump_value_difference(text_files):
-    connection_string = dc_util.get_connection_info(os.path.join(tests_folder, 'connection_file.ini'), 'sqlitedb')
+    connection_string = dc.get_connection_info(os.path.join(tests_folder, 'connection_file.ini'), 'sqlitedb')
 
     assert connection_string == "Driver=SQLite3 ODBC Driver;Database=sqlite.db"
 
     sql_text = "SELECT * FROM t1"
-    result = cdf.CompareDataFrame.from_sql(sql_text, connection_string)
+    result = dc.CompareDataFrame.from_sql(sql_text, connection_string)
 
-    expected = cdf.CompareDataFrame(
+    expected = dc.CompareDataFrame(
         pd.DataFrame(
             {"Nums": [1, 2, 3, 4], "Chars": ["right", "b", "c", "d"], "Extra": ["one", "two", "three", "four"]},
             columns=['Nums', 'Chars', 'Extra']))
@@ -60,14 +59,14 @@ def test_sql_dump_value_difference(text_files):
 
 
 def test_sql_date_parsing(text_files):
-    connection_string = dc_util.get_connection_info(os.path.join(tests_folder, 'connection_file.ini'), 'sqlitedb')
+    connection_string = dc.get_connection_info(os.path.join(tests_folder, 'connection_file.ini'), 'sqlitedb')
 
     assert connection_string == "Driver=SQLite3 ODBC Driver;Database=sqlite.db"
 
-    sql_texts = dc_util.get_sql_texts(tests_folder)
-    result = cdf.CompareDataFrame.from_sql(sql_texts['sql_use_date_prompt'], connection_string, params=['2014-04-01', '2014-04-04'])
+    sql_texts = dc.get_sql_texts(tests_folder)
+    result = dc.CompareDataFrame.from_sql(sql_texts['sql_use_date_prompt'], connection_string, params=['2014-04-01', '2014-04-04'])
 
-    expected = cdf.CompareDataFrame(
+    expected = dc.CompareDataFrame(
         {"Nums": [1, 2, 3, 4], "Chars": ["right", "b", "c", "d"], "Extra": ["one", "two", "three", "four"]},
         columns=['Nums', 'Chars', 'Extra'])
 
@@ -82,15 +81,16 @@ def test_sql_date_parsing(text_files):
 
 
 def test_dump_values_same(text_files):
-    # Testing also that nans are treated as equivalent for ETL testing so expect no difference in result
-    connection_string = dc_util.get_connection_info(os.path.join(tests_folder, 'connection_file.ini'), 'sqlitedb')
+    # Test that NaN/null are equivalent as required for ETL testing
+    connection_string = dc.get_connection_info(os.path.join(tests_folder, 'connection_file.ini'), 'sqlitedb')
 
-    sql_texts = dc_util.get_sql_texts(tests_folder)
-    result = cdf.CompareDataFrame.from_sql(sql_texts['sql_lite_nulls'], connection_string)
+    sql_texts = dc.get_sql_texts(tests_folder)
+    result = dc.CompareDataFrame.from_sql(sql_texts['sql_lite_nulls'], connection_string)
 
-    expected = cdf.CompareDataFrame(
-        {'Nums': [1, 2, 3], 'NumNulls': [np.nan, 3.3, 4.7]},
-        columns=['Nums', 'NumNulls'])
+    # Side effect of above that ints and floats may not always be equal when expected
+    expected = dc.CompareDataFrame(
+        {'Nums': [1, 2, 3], 'NumNulls': [np.nan, 3.3, 4.7], 'SomeInt': [1.0,2.0,3.0]},
+        columns=['Nums', 'NumNulls','SomeInt'])
 
     result.get_value_difference(expected, value_precision=1)
 

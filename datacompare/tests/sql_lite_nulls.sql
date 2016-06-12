@@ -1,1 +1,1 @@
-SELECT Nums, NumNulls, DateNulls, DateFirstNull, SomeDateTime FROM t1
+SELECT Nums, NumNulls, DateNulls, DateFirstNull, SomeDateTime, SomeInt FROM t1
