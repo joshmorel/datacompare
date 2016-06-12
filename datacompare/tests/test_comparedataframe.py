@@ -22,8 +22,8 @@ def test_dump_member_difference(text_files):
     in_right_not_in_left = pd.read_csv('in_right_not_in_left.txt', sep='\t')
     in_left_not_in_right = pd.read_csv('in_left_not_in_right.txt', sep='\t')
 
-    assert 4 in in_right_not_in_left["Nums"].values
-    assert 0 in in_left_not_in_right["Nums"].values
+    assert 'd' in in_right_not_in_left['Chars'].values
+    assert 'z' in in_left_not_in_right['Chars'].values
 
 
 def test_dump_value_difference(text_files):
