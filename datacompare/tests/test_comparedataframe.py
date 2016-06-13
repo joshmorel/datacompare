@@ -7,22 +7,19 @@ tests_folder = os.path.dirname(__file__)
 os.chdir(tests_folder)
 
 
-def test_dump_member_difference(text_files):
+def test_dump_member_difference():
     # ensure all functionality works as expected when primary key is not first in compared sets
     result = dc.CompareDataFrame(
-        {"Chars": ["z", "left", "b", "c"], "Extra": ["zero", "one", "two", "three"], "Nums": [0, 1, 2, 3]},
-        columns=['Chars', 'Extra', 'Nums'], primary_key="Nums")
+        {"Chars": ["z", "left", "b", "c"], "Extra": ["zero", "one", "two", "three"], "Num": [0, 1, 2, 3]},
+        columns=['Chars', 'Extra', 'Num'], primary_key="Num")
     expected = dc.CompareDataFrame(
         {"Chars": ["right", "b", "c", "d"], "Extra": ["one", "two", "three", "four"], "Nums": [1, 2, 3, 4]},
         columns=['Chars', 'Extra', 'Nums'], primary_key="Nums")
 
-    result.get_member_difference(expected)
+    left, right = result.get_member_difference(expected)
 
-    in_right_not_in_left = pd.read_csv('in_right_not_in_left.txt', sep='\t')
-    in_left_not_in_right = pd.read_csv('in_left_not_in_right.txt', sep='\t')
-
-    assert 'd' in in_right_not_in_left['Chars'].values
-    assert 'z' in in_left_not_in_right['Chars'].values
+    assert 'z' in left['Chars'].values
+    assert 'd' in right['Chars'].values
 
 
 def test_dump_value_difference(text_files):
@@ -33,7 +30,7 @@ def test_dump_value_difference(text_files):
         {"Nums": [1, 2, 3, 4], "Chars": ["right", "b", "c", "d"], "Extra": ["one", "two", "three", "four"]},
         columns=['Nums', 'Chars', 'Extra'])
 
-    result.get_value_difference(expected)
+    result.get_value_difference(expected, to_file=True)
 
     value_difference = pd.read_csv('value_difference.txt', sep='\t')
 
@@ -53,7 +50,7 @@ def test_sql_dump_value_difference(text_files):
         pd.DataFrame(
             {"Nums": [1, 2, 3, 4], "Chars": ["right", "b", "c", "d"], "Extra": ["one", "two", "three", "four"]},
             columns=['Nums', 'Chars', 'Extra']))
-    result.get_value_difference(expected)
+    result.get_value_difference(expected, to_file=True)
     value_difference = pd.read_csv('value_difference.txt', sep='\t')
     assert "left | right" in value_difference['Chars_1'].values
 
@@ -70,7 +67,7 @@ def test_sql_date_parsing(text_files):
         {"Nums": [1, 2, 3, 4], "Chars": ["right", "b", "c", "d"], "Extra": ["one", "two", "three", "four"]},
         columns=['Nums', 'Chars', 'Extra'])
 
-    result.get_member_difference(expected)
+    result.get_member_difference(expected, to_file=True)
 
     in_right_not_in_left = pd.read_csv('in_right_not_in_left.txt', sep='\t')
     in_left_not_in_right = pd.read_csv('in_left_not_in_right.txt', sep='\t')
@@ -92,7 +89,7 @@ def test_dump_values_same(text_files):
         {'Nums': [1, 2, 3], 'NumNulls': [np.nan, 3.3, 4.7], 'SomeInt': [1.0,2.0,3.0]},
         columns=['Nums', 'NumNulls','SomeInt'])
 
-    result.get_value_difference(expected, value_precision=1)
+    result.get_value_difference(expected, to_file=True, value_precision=1)
 
     value_difference = pd.read_csv('value_difference.txt', sep='\t')
     print('The different values are: {}'.format(value_difference))

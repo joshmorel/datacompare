@@ -24,8 +24,8 @@ def main():
     # Running this example from command line:
     # >python example_usage.py
 
-    result.get_member_difference(expected)
-    result.get_value_difference(expected)
+    result.get_member_difference(expected, to_file=True)
+    result.get_value_difference(expected, to_file=True)
 
 
 main()

@@ -83,11 +83,11 @@ class CompareDataFrame(pd.DataFrame):
         finally:
             sql_connection.close()
 
-    def get_member_difference(self, right, limit=100, to_file=True, path='.', ):
+    def get_member_difference(self, right, limit=100, to_file=False, path='.', ):
 
         """
         Using CompareDataFrame.primary_key gets members (rows) of object (left) not in right and vice versa.
-        Dumps to file or returns as tuple of frames
+        Dumps to file or returns as tuple of plain pandas DataFrames
 
         Examples:
         result.get_member_difference(expected)
@@ -100,7 +100,7 @@ class CompareDataFrame(pd.DataFrame):
             Data set to compare object against
         limit : int, default 100
             Number of rows to return
-        to_file : bool, default True
+        to_file : bool, default False
             Dumps two tab-separated text files in path, 'in_left_not_in_right.txt' & 'in_right_not_in_left.txt'
             Otherwise, return tuple of frames
         path : string, default = '.'
@@ -110,19 +110,21 @@ class CompareDataFrame(pd.DataFrame):
         shared_primary_keys = self.index[self.index.isin(right.index)]
 
         in_left_not_in_right = self[~self.index.isin(shared_primary_keys)][:limit]
+        in_left_not_in_right.set_primary_key(self.primary_key)
         in_right_not_in_left = right[~right.index.isin(shared_primary_keys)][:limit]
+        in_right_not_in_left.set_primary_key(right.primary_key)
 
         if to_file:
             in_left_not_in_right.to_csv(os.path.join(path, 'in_left_not_in_right.txt'), sep='\t')
             in_right_not_in_left.to_csv(os.path.join(path, 'in_right_not_in_left.txt'), sep='\t')
         else:
-            return in_left_not_in_right, in_right_not_in_left
+            return pd.DataFrame(in_left_not_in_right), pd.DataFrame(in_right_not_in_left)
 
-    def get_value_difference(self, right, limit=100, to_file=True, path='.', value_precision=0):
+    def get_value_difference(self, right, limit=100, to_file=False, path='.', value_precision=0):
 
         """
         Using CompareDataFrame.primary_key compare all column of object (left) against another CompareDataFrame (right)
-        Dumps findings to file or returns as frame
+        Dumps findings to file or returns as plain pandas DataFrame
 
         Examples:
         result.get_value_difference(expected)
@@ -135,7 +137,7 @@ class CompareDataFrame(pd.DataFrame):
             Data set to compare object against
         limit : int, default 100
             Number of rows to return
-        to_file : bool, default True
+        to_file : bool, default False
             Dumps two tab-separated text files in path, 'value_difference.txt'
             Otherwise, return frame
         path : string, default = '.'
@@ -187,7 +189,7 @@ class CompareDataFrame(pd.DataFrame):
         if to_file:
             rows_to_return[:limit].to_csv(os.path.join(path, 'value_difference.txt'),sep='\t')
         else:
-            return rows_to_return[:limit]
+            return pd.DataFrame(rows_to_return[:limit])
 
     # TODO: Truly add iterative/interactive functionality to show chunk of values missing in sets
     # def _iter_member_difference(self, right):
