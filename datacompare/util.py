@@ -1,7 +1,7 @@
 import os
 import configparser as cp
 import pandas as pd
-
+import codecs
 
 def check_equality(x, y):
     if x == y or (x in ('nan','None','NaT') and y in ('nan','None','NaT')):
@@ -41,7 +41,7 @@ def get_sql_texts(path='.'):
     Parameters
     ----------
     path : str, default '.'
-        Directory with SQL scripts
+        Directory with SQL scripts. At this time, encoding must be UTF-8, ANSI or ASCII
 
     Returns
     -------
