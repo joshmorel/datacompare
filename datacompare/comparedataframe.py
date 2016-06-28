@@ -1,19 +1,13 @@
 import pandas as pd
-import datacompare.util as dc_util
-import numpy as np
-import os
+from datacompare import util as dc_util
 import pyodbc
+import logging
 
-
-# TODO: Add command line functionality so this can executed from a tests file for automated testing
-
-# TODO: Data security considerations
-
-# TODO: Test in additional databases beyond sqlite ms sql
+logging.basicConfig(level=logging.INFO, format=' %(asctime)s - %(levelname)s- %(message)s')
+logging.debug('Start of program')
 
 
 class CompareDataFrame(pd.DataFrame):
-
     """
     A CompareDataFrame is a pandas.DataFrame with specific attributes and methods for ease of
     comparison of two data sets, particularly for ETL testing
@@ -38,16 +32,16 @@ class CompareDataFrame(pd.DataFrame):
             self.primary_key = self.columns[0]
         else:
             self.primary_key = primary_key
-        self._index_on_primary_key()
+            # self._index_on_primary_key()
 
-    def _index_on_primary_key(self):
-        self.index = self[self.primary_key]
-        self.sort_index(inplace=True)
+    # def _index_on_primary_key(self):
+    #     self.set_index(self.primary_key, drop=False, inplace=True)
+    #     self.sort_index(inplace=True)
 
     def set_primary_key(self, column_as_primary_key):
         assert column_as_primary_key in self.columns, "Must be single existing column in dataframe"
         self.primary_key = column_as_primary_key
-        self._index_on_primary_key()
+        # self._index_on_primary_key()
 
     @classmethod
     def from_sql(cls, sql, connection_string, primary_key=None, index_col=None, coerce_float=True, params=None):
@@ -77,131 +71,150 @@ class CompareDataFrame(pd.DataFrame):
 
         sql_connection = pyodbc.connect(connection_string)
         try:
-            df = pd.read_sql(sql, con = sql_connection, index_col=index_col, coerce_float=coerce_float,params=params)
+            df = pd.read_sql(sql, con=sql_connection, index_col=index_col, coerce_float=coerce_float, params=params)
             assert df.shape[0] > 0, 'No rows were returned by the SQL script: {}'.format(sql)
             return CompareDataFrame(df, primary_key=primary_key)
         finally:
             sql_connection.close()
 
-    def get_member_difference(self, right, limit=100, to_file=False, path='.', ):
+    def get_member_difference(self, right, limit=100):
 
         """
-        Using CompareDataFrame.primary_key gets members (rows) of object (left) not in right and vice versa.
-        Dumps to file or returns as tuple of plain pandas DataFrames
+        Using CompareDataFrame.primary_key gets members (rows) of object (left) not in right and vice versa to pass to py.test for assert
 
         Examples:
-        result.get_member_difference(expected)
 
-        left, right = result.get_member_difference(expected, to_file=False)
+       `python
+        left, right = result.create_value_comparable_lists(expected)
+
+        assert left == right
+        `
+
+        `shell
+
+        py.test
+
+        E       assert [InLeftOnly(I...zero', Num=0)] == [InRightOnly(I...our', Nums=4)]
+        E         At index 0 diff: InLeftOnly(Index=0, Chars='z', Extra='zero', Num=0) != InRightOnly(Index=4, Chars='d', Extra='four', Nums=4)
+        E         Full diff:
+        E         - [InLeftOnly(Index=0, Chars='z', Extra='zero', Num=0)]
+        E         ?    ^^^            ^         ^          ^^ -       ^
+        E         + [InRightOnly(Index=4, Chars='d', Extra='four', Nums=4)]
+        E         ?    ^^^^            ^         ^          ^^^       + ^
+        `
 
         Parameters
         ----------
         right : CompareDataFrame
             Data set to compare object against
         limit : int, default 100
-            Number of rows to return
-        to_file : bool, default False
-            Dumps two tab-separated text files in path, 'in_left_not_in_right.txt' & 'in_right_not_in_left.txt'
-            Otherwise, return tuple of frames
-        path : string, default = '.'
-            The directory to dump the files to
+            Number of members not found in other set to return per set
 
         """
-        shared_primary_keys = self.index[self.index.isin(right.index)]
 
-        in_left_not_in_right = self[~self.index.isin(shared_primary_keys)][:limit]
-        in_left_not_in_right.set_primary_key(self.primary_key)
-        in_right_not_in_left = right[~right.index.isin(shared_primary_keys)][:limit]
-        in_right_not_in_left.set_primary_key(right.primary_key)
+        # indexed_self = pd.DataFrame(data= primary_key
 
-        if to_file:
-            in_left_not_in_right.to_csv(os.path.join(path, 'in_left_not_in_right.txt'), sep='\t')
-            in_right_not_in_left.to_csv(os.path.join(path, 'in_right_not_in_left.txt'), sep='\t')
-        else:
-            return pd.DataFrame(in_left_not_in_right), pd.DataFrame(in_right_not_in_left)
+        left_index = pd.Index(self[self.primary_key])
+        right_index = pd.Index(right[right.primary_key])
 
-    def get_value_difference(self, right, limit=100, to_file=False, path='.', value_precision=0):
+        assert left_index.is_unique, 'Index of left (self) set must be unique'
+        assert right_index.is_unique, 'Index of right set must be unique'
+
+        shared_index_values = left_index[left_index.isin(right_index)]
+        in_left_not_in_right = self[~self[self.primary_key].isin(shared_index_values)]
+        in_right_not_in_left = right[~right[right.primary_key].isin(shared_index_values)]
+
+        logging.debug('in right not in left {} '.format(in_right_not_in_left))
+
+        i = limit
+        rows_left = []
+        for row in in_left_not_in_right.itertuples(index=True, name='InLeftOnly'):
+            rows_left.append(row)
+            if i < 0:
+                break
+            i -= 1
+
+        i = limit
+        rows_right = []
+        for row in in_right_not_in_left.itertuples(index=True, name='InRightOnly'):
+            logging.debug('right row is {} '.format(row))
+            rows_right.append(row)
+            if i < 0:
+                break
+            i -= 1
+
+        logging.debug('rows right {} '.format(rows_right))
+        return rows_left, rows_right
+
+    def create_value_comparable_lists(self, right, value_precision=0):
 
         """
-        Using CompareDataFrame.primary_key compare all column of object (left) against another CompareDataFrame (right)
-        Dumps findings to file or returns as plain pandas DataFrame
+        Using CompareDataFrame.primary_key produce two lists of rows with matching keys and columns to then perform an equality test with py.test
 
         Examples:
-        result.get_value_difference(expected)
 
-        differences = result.get_member_difference(expected, to_file=False)
+        `python
+        left, right = result.create_value_comparable_lists(expected)
+
+        assert left == right
+        `
+
+        `shell
+
+        py.test
+
+        E       assert [ValueCompare...xtra='three')] == [ValueCompare(...xtra='three')]
+        E         At index 0 diff: ValueCompare(Index=1, Nums='1.0', Chars='left', Extra='one') != ValueCompare(Index=1, Nums='1.0', Chars='right', Extra='one')
+        E         Full diff:
+        E         - [ValueCompare(Index=1, Nums='1.0', Chars='left', Extra='one'),
+        E         ?                                           ^^^
+        E         + [ValueCompare(Index=1, Nums='1.0', Chars='right', Extra='one'),
+        E         ?                                           ^^^^
+        E         ValueCompare(Index=2, Nums='2.0', Chars='b', Extra='two'),
+        E         ValueCompare(Index=3, Nums='3.0', Chars='c', Extra='three')]
+        `
 
         Parameters
         ----------
         right : CompareDataFrame
             Data set to compare object against
-        limit : int, default 100
-            Number of rows to return
-        to_file : bool, default False
-            Dumps two tab-separated text files in path, 'value_difference.txt'
-            Otherwise, return frame
-        path : string, default = '.'
-            The directory to dump the files to
         value_precision : int, default 0
             For numeric data types, the degree precision to round to
 
         """
 
-        shared_primary_keys = self.index[self.index.isin(right.index)]
+        left_index = pd.Index(self[self.primary_key])
+        right_index = pd.Index(right[right.primary_key])
+
+        assert left_index.is_unique, 'Index of left (self) set must be unique'
+        assert right_index.is_unique, 'Index of right set must be unique'
+
+        shared_index_values = left_index[left_index.isin(right_index)]
         shared_columns = self.columns[self.columns.isin(right.columns)]
         assert len(shared_columns) >= 2, "Require at least one common column in data sets beside primary key"
 
-        left_data_to_compare = self.loc[shared_primary_keys][shared_columns]
-        right_data_to_compare = right.loc[shared_primary_keys][shared_columns]
+        left_data_to_compare = self[self[self.primary_key].isin(shared_index_values)].set_index(
+            self.primary_key).sort_index()
 
-        # To product final data frame only do not include primary key column
-        shared_columns_to_return = list(set(shared_columns).difference({left_data_to_compare.primary_key}))
+        right_data_to_compare = right[right[right.primary_key].isin(shared_index_values)].set_index(
+            right.primary_key).sort_index()
 
-        # List of frames for each column with value differences by row and formatted display of different values
-        column_values = [dc_util.compare_column_values(left_data_to_compare[col],
-                                                       right_data_to_compare[col],
-                                                       precision=value_precision)
-                         for col in shared_columns_to_return]
+        standardized_left = dc_util.clean_frame(left_data_to_compare, precision=value_precision)
+        standardized_right = dc_util.clean_frame(right_data_to_compare, precision=value_precision)
 
-        # Start with empty frame to which to add both value difference counts by row index and columns
-        values_frame = pd.DataFrame({'values_different': [0] * len(left_data_to_compare.index)},
-                                    index=left_data_to_compare.index)
+        rows_left = []
+        for row in standardized_left.itertuples(index=True, name='ValueCompare'):
+            rows_left.append(row)
 
-        # Build frame and also list of tuples of column name/difference pairs for presentation of returned set
-        column_difference_counts = []
-        for col in column_values:
-            values_frame['values_different'] = values_frame['values_different'] + col.iloc[:, 0]
-            values_frame[col.iloc[:, 1].name] = col.iloc[:, 1]
-            column_difference_counts.append((col.iloc[:, 1].name, sum(col.iloc[:, 0])))
+        rows_right = []
+        for row in standardized_right.itertuples(index=True, name='ValueCompare'):
+            rows_right.append(row)
 
-        # Show columns with most difference at left, and return only rows with at least one difference
-        sorted_column_names = ['values_different'] + [col[0] for col in
-                                                      sorted(column_difference_counts, key=lambda c: c[1],
-                                                             reverse=True)]
-        rows_to_return = values_frame[values_frame['values_different'] > 0][sorted_column_names]
-
-        # Tag columns with difference count suffix to facilitate inspection
-        tagged_column_names = ['values_different'] + ['{}_{}'.format(col[0], col[1]) for col in
-                                                      sorted(column_difference_counts, key=lambda c: c[1],
-                                                             reverse=True)]
-        rows_to_return.columns = tagged_column_names
-
-        if to_file:
-            rows_to_return[:limit].to_csv(os.path.join(path, 'value_difference.txt'),sep='\t')
-        else:
-            return pd.DataFrame(rows_to_return[:limit])
-
-    # TODO: Truly add iterative/interactive functionality to show chunk of values missing in sets
-    # def _iter_member_difference(self, right):
-    #     pass
-
-    # TODO: Add iterative/interactive functionality to show chunk of values with different values
-
-    # def iter_value_difference(self, right):
-    #     pass
+        return rows_left, rows_right
 
     @property
     def _constructor(self):
         return CompareDataFrame
 
 
+logging.debug('End of program')

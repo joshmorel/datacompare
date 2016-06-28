@@ -1,6 +1,4 @@
 import pyodbc
-import pandas as pd
-import datacompare as dc
 
 connection_string = "Driver=SQLite3 ODBC Driver;Database=sqlite.db"
 
@@ -51,17 +49,3 @@ try:
         sql_cursor.execute("INSERT INTO sales_old VALUES (?,?,?,?)", '2015-04-05', 'Helmet', 4, round(4 * 27, 2))
 finally:
     sql_connection.close()
-
-connection_string = dc.get_connection_info('connection_file.ini', 'salesdb')
-sql_texts = dc.get_sql_texts()
-
-result = dc.CompareDataFrame.from_sql(sql_texts['example_sales_new'], connection_string,
-                                          params=['2011-04-01', '2016-04-02'])
-
-expected = dc.CompareDataFrame.from_sql(sql_texts['example_sales_old'], connection_string,
-                                        params=['2011-04-01', '2016-04-02'])
-
-
-result.to_csv('result.csv',index=False)
-expected.to_csv('expected.csv',index=False)
-

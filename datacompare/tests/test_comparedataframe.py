@@ -7,6 +7,8 @@ tests_folder = os.path.dirname(__file__)
 os.chdir(tests_folder)
 
 
+#TODO: Update to test results
+
 def test_dump_member_difference():
     # ensure all functionality works as expected when primary key is not first in compared sets
     result = dc.CompareDataFrame(
@@ -30,7 +32,7 @@ def test_dump_value_difference(text_files):
         {"Nums": [1, 2, 3, 4], "Chars": ["right", "b", "c", "d"], "Extra": ["one", "two", "three", "four"]},
         columns=['Nums', 'Chars', 'Extra'])
 
-    result.get_value_difference(expected, to_file=True)
+    result.create_value_comparable_lists(expected, to_file=True)
 
     value_difference = pd.read_csv('value_difference.txt', sep='\t')
 
@@ -50,7 +52,7 @@ def test_sql_dump_value_difference(text_files):
         pd.DataFrame(
             {"Nums": [1, 2, 3, 4], "Chars": ["right", "b", "c", "d"], "Extra": ["one", "two", "three", "four"]},
             columns=['Nums', 'Chars', 'Extra']))
-    result.get_value_difference(expected, to_file=True)
+    result.create_value_comparable_lists(expected, to_file=True)
     value_difference = pd.read_csv('value_difference.txt', sep='\t')
     assert "left | right" in value_difference['Chars_1'].values
 
@@ -89,7 +91,7 @@ def test_dump_values_same(text_files):
         {'Nums': [1, 2, 3], 'NumNulls': [np.nan, 3.3, 4.7], 'SomeInt': [1.0,2.0,3.0]},
         columns=['Nums', 'NumNulls','SomeInt'])
 
-    result.get_value_difference(expected, to_file=True, value_precision=1)
+    result.create_value_comparable_lists(expected, to_file=True, value_precision=1)
 
     value_difference = pd.read_csv('value_difference.txt', sep='\t')
     print('The different values are: {}'.format(value_difference))

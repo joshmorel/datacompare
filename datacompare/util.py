@@ -3,6 +3,7 @@ import configparser as cp
 import pandas as pd
 import codecs
 
+
 def check_equality(x, y):
     if x == y or (x in ('nan','None','NaT') and y in ('nan','None','NaT')):
         return True
@@ -12,6 +13,17 @@ def check_equality(x, y):
 
 def compare_value_pair(x, y):
     return (0, x) if check_equality(x, y) else (1, '{} | {}'.format(x, y))
+
+
+def clean_frame(df, precision=0):
+    # Convert bools, ints, floats to floats then round as different sources may have different type but same meaning
+
+    new_df = pd.DataFrame(data=None,columns=df.columns,index=df.index)
+
+    for col in df:
+        new_col = clean_series(df[col],precision=precision)
+        new_df[col] = new_col
+    return new_df
 
 
 def clean_series(s, precision=0):

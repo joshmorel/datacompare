@@ -9,9 +9,9 @@ The SQL unit test with C# does seem promising, but only for automated testing, n
 
 Features
 ---------------
-    - Compare data from SQL (via pyodbc), txt or DataFrame
-    - Get rows in one set not in the other and vice versa and view in session or dump to text
-    - Show values different in every column for matched rows and view in session or dump to text
+    - Automatic & interactive comparison of results sets leveraging py.test and pyodbc
+    - Compare data from databases and flat files
+    - Check result set membership equality & value equality
 
 Caution
 ---------------
@@ -26,47 +26,49 @@ Usage
 ---------------
 
     - PIP install from GitHub > pip install git+git://github.com/joshmorel/datacompare.git@master
-    - Open an interactive python interpreter and set working directory to something which contains these files https://github.com/joshmorel/datacompare/tree/master/docs/example
-    - Run the following code (assume sqlite 3 ODBC driver is installed)
+    - Install py.test > pip install -U pytest
+    - Install sqlite 3 ODBC driver & set-up as in https://github.com/joshmorel/datacompare/tree/master/docs/example
+    - Create file test_with_pytest_example.py as below
+
 
 .. code-block:: python
 
     import datacompare as dc
-    sql_texts = dc.get_sql_texts()
+
     connection_string = dc.get_connection_info('connection_file.ini', 'salesdb')
+    sql_texts = dc.get_sql_texts()
 
-    left = dc.CompareDataFrame.from_sql(sql_texts['example_sales_new'],
-                                    connection_string,params=['2015-04-01', '2016-04-02'])
-    right = dc.CompareDataFrame.from_sql(sql_texts['example_sales_old'],
-                                     connection_string,params=['2015-04-01', '2016-04-02'])
+    result = dc.CompareDataFrame.from_sql(sql_texts['example_sales_new'], connection_string,
+                                          params=['2015-04-01', '2015-04-02'])
 
-    in_left_not_right, in_right_not_left = left.get_member_difference(right, to_file=False, limit=2)
-    value_differences = left.get_value_difference(right, to_file=False, limit=2, value_precision=2)
+    expected = dc.CompareDataFrame.from_sql(sql_texts['example_sales_old'], connection_string,
+                                            params=['2015-04-01', '2015-04-02'])
 
-    print('Rows in left not in right\n {}\
-    \n\nRows in right not in left\n{}\
-    \n\nValue differences\n {}'.format(in_left_not_right,in_right_not_left,value_differences))
 
-Will show::
+    def test_with_pytest_members_are_same():
 
-    Rows in left not in right
-                                 date_product  sales_quantity  sales_amount
-    date_product
-    2015-05-05 - Helmet  2015-05-05 - Helmet             4.0           1.0
+        left, right = result.get_member_difference(expected)
 
-    Rows in right not in left
-                                  date_product  sales_quantity  sales_amount
-    date_product
-    2015-04-04 - Bicycle  2015-04-04 - Bicycle               4       1001.64
-    2015-04-04 - Helmet    2015-04-04 - Helmet               8        216.00
+        assert left == right
 
-    Value differences
-                           values_different   sales_amount_2 sales_quantity_1
-    date_product
-    2015-04-01 - Bicycle                 1  2504.1 | 2408.0             10.0
-    2015-04-02 - Helmet                  2       nan | 27.0        nan | 1.0
 
-Future Direction
-------------------
-    - Automated ETL testing functionality
-    - Interactive command line session with iter function to generate chunks of rows
+    def test_with_pytest_values_are_same():
+
+        left, right = result.create_value_comparable_lists(expected)
+
+        assert left == right
+
+
+
+Run in terminal in directory where above saved and get the following result::
+
+    >py.test -vv
+
+    E         Full diff:
+    E         - [ValueCompare(Index='2015-04-01 - Bicycle', sales_quantity='10.0', sales_amount='2504.0'),
+    E         ?                                                                                   ^ ^
+    E         + [ValueCompare(Index='2015-04-01 - Bicycle', sales_quantity='10.0', sales_amount='2408.0'),
+    E         ?                                                                                   ^ ^
+
+
+
