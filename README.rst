@@ -25,9 +25,9 @@ MIT
 Usage
 ---------------
 
-    - PIP install from GitHub > pip install git+git://github.com/joshmorel/datacompare.git@master
+    - PIP install from GitHub > pip install git+http://github.com/joshmorel/datacompare.git@master
     - Install py.test > pip install -U pytest
-    - Install sqlite 3 ODBC driver & set-up as in https://github.com/joshmorel/datacompare/tree/master/docs/example
+    - Install sqlite 3 ODBC driver & set-up as in http://github.com/joshmorel/datacompare/tree/master/docs/example
     - Create file test_with_pytest_example.py as below
 
 
