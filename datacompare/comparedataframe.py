@@ -191,12 +191,14 @@ class CompareDataFrame(pd.DataFrame):
 
         shared_index_values = left_index[left_index.isin(right_index)]
         shared_columns = self.columns[self.columns.isin(right.columns)]
-        assert len(shared_columns) >= 2, "Require at least one common column in data sets beside primary key"
 
-        left_data_to_compare = self[self[self.primary_key].isin(shared_index_values)].set_index(
+        assert len(shared_columns) >= 2, "Require at least one common column in data sets beside primary key"
+        assert shared_columns.is_unique, 'Columns to compare sets against must be unique'
+
+        left_data_to_compare = self[self[self.primary_key].isin(shared_index_values)][shared_columns].set_index(
             self.primary_key).sort_index()
 
-        right_data_to_compare = right[right[right.primary_key].isin(shared_index_values)].set_index(
+        right_data_to_compare = right[right[right.primary_key].isin(shared_index_values)][shared_columns].set_index(
             right.primary_key).sort_index()
 
         standardized_left = dc_util.clean_frame(left_data_to_compare, precision=value_precision)
